@@ -272,7 +272,8 @@ OptionValue[ellipsoidcolor]===False,ellipsoids3D,
 True,Message[lda::ellcolor,OptionValue[ellipsoidcolor]];coloredellipsoids3D
 ]
 },
-Axes->True,AxesLabel->{
+Axes->True,AxesStyle->Black, BoxStyle->Black,
+AxesLabel->{
 Style["Factor 1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",FontSize->Scaled[0.04],FontFamily->"Arial",Blue],Style["Factor 2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->Scaled[0.04],FontFamily->"Arial",Red],
 Style["Factor 3 ("<>ToString[Round[100eigenvals[[3]]/Total@eigenvals,0.1]]<>"%)",FontSize->Scaled[0.04],FontFamily->"Arial",Darker@Green]
 },
@@ -283,7 +284,8 @@ If[OptionValue[output]=="3DL",
 Graphics3D[
 MapThread[Tooltip[Style[Point[#1],Red,PointSize[0.02]],Style[#2<>" "<>ToString@Round[100#1,1],Medium]]&,{Transpose[eigenvecs[[1;;3]]^2],columnheaderlist}],
 PlotRange->{{0,1},{0,1},{0,1}},PlotRangePadding->Scaled[.05],
-Axes->True,AxesLabel->{
+Axes->True,AxesStyle->Black, BoxStyle->Black,
+AxesLabel->{
 Style["Contrib. to F1",FontSize->Scaled[0.04],FontFamily->"Arial",Blue],
 Style["Contrib. to F2",FontSize->Scaled[0.04],FontFamily->"Arial",Red],
 Style["Contrib. to F3",FontSize->Scaled[0.04],FontFamily->"Arial",Darker@Green]
@@ -310,6 +312,10 @@ Message[lda::outputoptions,OptionValue[output]];Return[]
 lda::notamatrix="The input to lda is not a matrix.";
 lda[dataset_/;Not[MatrixQ[dataset]],OptionsPattern[]]:=Message[lda::notamatrix]
 
+
+
+(* ::Section:: *)
+(*Group contribution helper functions*)
 
 
 (* The following function generates a bar chart of the weighted contributions of each sensor to the overall discrimination *)
@@ -347,7 +353,6 @@ ImageSize->Scaled[0.25]
 ]
 
 
-
 (* ::Section:: *)
 (*Detection of outliers using PCA*)
 
@@ -378,7 +383,18 @@ PlotRange->All,PlotRangePadding->Scaled[0.1]
 
 
 (* ::Section:: *)
+(*Helper function to extract the score and loading plots from a grid output*)
+
+
+(* ::Text:: *)
+(*This function returns a list of two objects: the first is the score plot; the second is the loading plot.*)
+
+
+plotsfromgrid[gridobject_]:=gridobject[[1,2,1,All,1]]
+
+
+(* ::Section:: *)
 (*Saving out function definitions*)
 
 
-Save["C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\Papers\\2015 Alie Wallace coumarins\\Data\\currentLDAfunctions.m",{lda,groupcontribs,outlierPCA}]
+Save["C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\Papers\\2015 Alie Wallace coumarins\\Data\\currentLDAfunctions.m",{lda,groupcontribs,outlierPCA,plotsfromgrid}]
