@@ -44,7 +44,7 @@ lda::ellcolor="The value `1` for the ellipsoidcolor option is not valid. Accepta
 
 
 lda[matrix_/;MatrixQ[matrix],OptionsPattern[]]:=Module[
-{(* the definition below is important, althouhg it looks silly!*)
+{(* the definition below is important, although it looks silly!*)
 (* If one used matrix directly in the function body, the VALUE of matrix would be substituted *)
 (* everywhere BEFORE any further evaluation. the name of the pattern is not a proper variable!! *)
 (* This is the reason why the standardization in place did not work before *)
@@ -57,7 +57,9 @@ grandmean,clustermeans,Swi,Sw,Sb,
 eigenvals,eigenvecs,
 plotdata,readyforplot,
 ellipsoids2D,coloredellipsoids2D,
-ellipsoids3D,coloredellipsoids3D
+ellipsoids3D,coloredellipsoids3D,
+(* this longer color list was introduced when I ran the acetate and chloride LDA, which had many groups and the function ran out of colors *)
+colorlist=Join[ColorData[97,"ColorList"],Lighter@ColorData[97,"ColorList"],Lighter@ColorData[99,"ColorList"]]
 },
 
 (* if column headers are present, extract them and assign them to columnheaderlist. *)
@@ -170,7 +172,7 @@ coloredellipsoids2D=MapThread[
 {Opacity[0],EdgeForm[{#2,AbsoluteThickness[2]}],Ellipsoid[Mean[#1],6Covariance[#1]]}&,
 {
 partitionedscores,
-ColorData[97,"ColorList"][[1;;First@Dimensions@partitionedscores]]
+colorlist[[1;;First@Dimensions@partitionedscores]]
 }];
 
 readyforplot=MapThread[Tooltip,{partitionedscores,classlist}];
@@ -255,10 +257,10 @@ coloredellipsoids3D=MapThread[
 {Opacity[0.2,#2],Ellipsoid[Mean[#1],6Covariance[#1]]}&,
 {
 partitionedscores,
-ColorData[97,"ColorList"][[1;;First@Dimensions@partitionedscores]]
+colorlist[[1;;First@Dimensions@partitionedscores]]
 }];
 
-readyforplot=MapThread[Tooltip[{#3,Point[#1]},#2]&,{partitionedscores,classlist,ColorData[97,"ColorList"][[1;;First@Dimensions@partitionedscores]]}];
+readyforplot=MapThread[Tooltip[{#3,Point[#1]},#2]&,{partitionedscores,classlist,colorlist[[1;;First@Dimensions@partitionedscores]]}];
 
 Return[
 If[OptionValue[output]=="3DL",GraphicsRow[#,ImageSize->Scaled[1]]&,Show[#[[1]],ImageSize->Scaled[0.6]]&]@
@@ -397,4 +399,13 @@ plotsfromgrid[gridobject_]:=gridobject[[1,2,1,All,1]]
 (*Saving out function definitions*)
 
 
+(* ::Text:: *)
+(*Save is useful because it saves dependencies in the definition, but it APPENDS to its output file. It's best to delete the existing file before appending.*)
+
+
+targetfile="C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\Papers\\2015 Alie Wallace coumarins\\Data\\currentLDAfunctions.m"
+If[FileExistsQ[targetfile],Print["Deleting old definitions..."];DeleteFile[targetfile]]
 Save["C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\Papers\\2015 Alie Wallace coumarins\\Data\\currentLDAfunctions.m",{lda,groupcontribs,outlierPCA,plotsfromgrid}]
+
+
+
