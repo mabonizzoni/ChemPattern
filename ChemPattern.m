@@ -68,7 +68,7 @@ colorlist=Join[ColorData[97,"ColorList"],Lighter@ColorData[97,"ColorList"],Light
 (* and don't need to repeatedly check, no matter whether the original data had them or not *)
 (* Remember that from now on dataset[[1,1]] contains no intereseting data *)
 If[VectorQ[dataset[[1,2;;]],NumberQ]==True,
-hascolumnheaders=False;Prepend[columnheaderlist=Join[{""},ToString/@Array["var",Last@Dimensions@dataset-1]]][dataset],
+hascolumnheaders=False;PrependTo[dataset,Join[{""},columnheaderlist=ToString/@Array["var",Last@Dimensions@dataset-1]]],
 hascolumnheaders=True;columnheaderlist=dataset[[1,2;;]]
 ];
 
