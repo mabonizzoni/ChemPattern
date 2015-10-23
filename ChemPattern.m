@@ -182,7 +182,7 @@ If[OptionValue[output]=="2DL",GraphicsRow[#,ImageSize->Scaled[0.6]]&,Show[#[[1]]
 List[
 (* 2D score plot *)
 ListPlot[readyforplot,
-Frame->True,FrameStyle->Directive[Black,FontSize->15],FrameLabel->{
+Frame->True,Axes->False,FrameStyle->Directive[Black,FontSize->15],FrameLabel->{
 Style["Factor 1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Blue],
 Style["Factor 2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Red]
 },
