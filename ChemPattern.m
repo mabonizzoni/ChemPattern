@@ -375,7 +375,7 @@ MapIndexed[Labeled[#1,First@#2]&,PCs[[All,1;;2]]],
 AspectRatio->1,PlotStyle->PointSize[0.02],
 Axes->False,Frame->True,FrameStyle->Directive[Black,FontSize->14],
 FrameLabel->{"PC1 ("<>ToString[contributions[[1]]]<>"%)","PC2 ("<>ToString[contributions[[2]]]<>"%)"},
-Epilog->Inset[Style[set[[2,1]],Red,Bold,FontSize->18],Scaled[{0.9,0.9}]]
+Epilog->Text[Style[set[[2,1]],Red,Bold,FontSize->18],Scaled[{0.99,0.95}],{1,0}]
 ],
 Graphics@{Opacity[0],EdgeForm[{Gray,Dashed,Thick}],Ellipsoid[Mean@PCs[[All,1;;2]],6Covariance@PCs[[All,1;;2]]]}
 },
