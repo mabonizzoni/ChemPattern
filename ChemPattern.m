@@ -385,14 +385,16 @@ PlotRange->All,PlotRangePadding->Scaled[0.1]
 
 
 (* ::Section:: *)
-(*Helper function to extract the score and loading plots from a grid output*)
+(*plotsfromgrid: helper function to extract the score and loading plots from a Grid output*)
 
 
 (* ::Text:: *)
 (*This function returns a list of two objects: the first is the score plot; the second is the loading plot.*)
 
 
-plotsfromgrid[gridobject_]:=gridobject[[1,2,1,All,1]]
+Clear[plotsfromgrid]
+plotsfromgrid[gridobject_?(MemberQ[#,{Inset[__],Inset[__]},Infinity]&)]:=gridobject[[1,2,1,All,1]]
+plotsfromgrid[nongridobject_]:=nongridobject
 
 
 (* ::Section:: *)
