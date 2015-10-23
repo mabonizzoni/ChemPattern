@@ -325,7 +325,7 @@ lda[dataset_/;Not[MatrixQ[dataset]],OptionsPattern[]]:=Message[lda::notamatrix]
 (* This is because a sensor that contributes a lot to an unimportant factor is still unimportant in the overall discrimination *)
 Clear[groupcontribs];
 
-groupcontribs::usage="groupcontribs[eigensystem,numberofgroups,sensornames]\ngroupedcontributions[eigensystem,numberofgroups]\nThe function generates a bar chart of the contributions of each group of variables to the overall discrimination. Before summing, the contributions to each factor are weighted by the corresponding eigenvalue of the factor. This is needed so that a group that contributes a lot to an unimportant factor is still reported as unimportant in the overall discrimination.";
+groupcontribs::usage="groupcontribs[eigensystem,numberofgroups,sensornames]\ngroupcontribs[eigensystem,numberofgroups]\nThe function generates a bar chart of the contributions of each group of variables to the overall discrimination. Before summing, the contributions to each factor are weighted by the corresponding eigenvalue of the factor. This is needed so that a group that contributes a lot to an unimportant factor is still reported as unimportant in the overall discrimination.";
 groupcontribs::numgroups="The number of variables in the eigensystem (`1`) is not an exact multiple of the number of groups provided (`2`).";
 
 groupcontribs[eigensystem_,numberofgroups_,sensornames_:Null]:=Module[
@@ -396,6 +396,18 @@ PlotRange->All,PlotRangePadding->Scaled[0.1]
 Clear[plotsfromgrid]
 plotsfromgrid[gridobject_?(MemberQ[#,{Inset[__],Inset[__]},Infinity]&)]:=gridobject[[1,2,1,All,1]]
 plotsfromgrid[nongridobject_]:=nongridobject
+
+
+(* ::Section:: *)
+(*selectsubsets: helper function to select homogeneous instrumental variable subsets for analysis*)
+
+
+Clear[selectsubsets]
+selectsubsets[set_,criterion_]:=
+Transpose@Insert[
+Select[Transpose[set],StringContainsQ[#[[1]],criterion]&],
+set[[All,1]],1
+]
 
 
 (* ::Section:: *)
