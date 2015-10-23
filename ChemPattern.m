@@ -34,7 +34,7 @@
 (*Implementation*)
 
 
-Remove[lda];
+Clear[lda];
 Options[lda]={applyfunc->Identity,output->"2DL",ellipsoidcolor->Automatic,swapaxes->False};
 lda::usage="lda[dataset] carries out Linear Discriminant Analysis on dataset and returns the transformed data as factor scores (default), or other numerical / graphical results. Each row of dataset should contain a sample; the first column contains the class identifier for that sample.\nOptions:\napplyfunc (Identity (default), Standardize, Rescale, ...)\noutput (\"scores\", \"vartable\", \"eigenvectors\", \"eigensystem\", \"2D\" (= 2D score plot), \"2DL\" (= 2D score and loading plots, default), \"3D\", \"3DL\")\nswapaxes (default = {False,False}).";
 lda::outputoptions="The value `1` is not a valid plotting option. Valid options are: \"eigenvectors\" (default), \"eigensystem\", \"vartable\", \"2D\", \"3D\".";
@@ -323,7 +323,7 @@ lda[dataset_/;Not[MatrixQ[dataset]],OptionsPattern[]]:=Message[lda::notamatrix]
 (* The following function generates a bar chart of the weighted contributions of each sensor to the overall discrimination *)
 (* The contributions are weighted by the weight of the factors themselves, represented by the eigenvalues from lda *)
 (* This is because a sensor that contributes a lot to an unimportant factor is still unimportant in the overall discrimination *)
-Remove[groupcontribs];
+Clear[groupcontribs];
 
 groupcontribs::usage="groupcontribs[eigensystem,numberofgroups,sensornames]\ngroupedcontributions[eigensystem,numberofgroups]\nThe function generates a bar chart of the contributions of each group of variables to the overall discrimination. Before summing, the contributions to each factor are weighted by the corresponding eigenvalue of the factor. This is needed so that a group that contributes a lot to an unimportant factor is still reported as unimportant in the overall discrimination.";
 groupcontribs::numgroups="The number of variables in the eigensystem (`1`) is not an exact multiple of the number of groups provided (`2`).";
@@ -359,6 +359,7 @@ ImageSize->Scaled[0.25]
 (*Detection of outliers using PCA*)
 
 
+Clear[outlierPCA]
 outlierPCA[set_]:=Module[
 {workingdata,eigenvectors,eigenvalues,PCs,contributions},
 workingdata=If[
