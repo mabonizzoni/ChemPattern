@@ -112,8 +112,17 @@ Which[
 (* Numerical output *)
 (********************)
 
-OptionValue[output]=="scores",(* Default option: return the transformed data as labeled scores, e.g. for external plotting *)
-Return[labeledtransformed],
+OptionValue[output]=="scores",(* Return the transformed data as labeled scores, e.g. for external plotting *)
+Return[
+Transpose@Prepend[
+(* Add the ROW headers from the original dataset back in *)
+Transpose@Prepend[
+(* Add the factor number COLUMN headers *)
+transformeddata,Array["F"<>ToString[#]&,Dimensions[transformeddata][[2]] ]
+],
+dataset[[All,1]]
+]
+],
 
 OptionValue[output]=="vartable",(* Return a formatted table of the contributions of each variable to the first three factors *)
 Return[
