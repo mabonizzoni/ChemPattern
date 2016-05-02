@@ -420,6 +420,47 @@ set[[All,1]],1
 
 
 (* ::Section:: *)
+(*filterVars: helper function to use with Manipulate to interactively filter low-contribution variables to LDA*)
+
+
+ClearAll[filterVars]
+Options[filterVars]={output->"2DL"};
+filterVars[data_,threshold_?NonNegative,OptionsPattern[]]:=
+Module[
+{oldvartable,varcontribs,selectedvars,filtereddata,newscoreplot,newloadingplot,newvartable},
+(* Generate LDA results from the input data and collect the variable loading table *)
+oldvartable=lda[data,applyfunc->Standardize,output->"vartable"];
+(* Extract the variable contributions *)
+varcontribs=Cases[oldvartable[[1]]//InputForm,TableForm[list_,TableHeadings->{rowheadings_,_},__]:>Transpose[Insert[Transpose[list],rowheadings,1]]];
+(* Select only variables whose contribution to any of the first three factors is higher than the user-set threshold *)
+selectedvars=Cases[varcontribs,{var_,f1_,f2_,f3_}/;f1>=threshold||f2>=threshold->var,2];
+(* Generate a new data set to pass to LDA which will contain only the filtered variables *)
+filtereddata=Transpose@Prepend[Cases[Transpose@data,{Alternatives@@selectedvars,__}],data[[All,1]]];
+
+(* Calculate the new score plot; if a loading plot was requested in output, then calculate one as well *)
+If[StringTake[OptionValue[output],-1]=="L",
+{newscoreplot,newloadingplot}=plotsfromgrid[lda[filtereddata,applyfunc->Standardize,output->OptionValue[output]]],
+newscoreplot=lda[filtereddata,applyfunc->Standardize,output->OptionValue[output]]
+];
+
+(* Calculate the new variable contribution table *)
+newvartable=lda[filtereddata,applyfunc->Standardize,output->"vartable"];
+
+(* Generate formatted output *)
+If[StringTake[OptionValue[output],-1]=="L",
+Grid[{
+{Show[newscoreplot,ImageSize->Medium],oldvartable},
+{Show[newloadingplot,ImageSize->Medium],newvartable}
+},Alignment->{Center,Center}],
+Grid[{
+{Show[newscoreplot,ImageSize->Medium],oldvartable},
+{SpanFromAbove,newvartable}
+},Alignment->{Center,Center}]
+]
+]
+
+
+(* ::Section:: *)
 (*Saving out function definitions*)
 
 
@@ -429,7 +470,7 @@ set[[All,1]],1
 
 targetfile="C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\Papers\\2015 Alie Wallace coumarins\\Data\\currentLDAfunctions.m"
 If[FileExistsQ[targetfile],Print["Deleting old definitions..."];DeleteFile[targetfile]]
-Save["C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\Papers\\2015 Alie Wallace coumarins\\Data\\currentLDAfunctions.m",{lda,groupcontribs,outlierPCA,plotsfromgrid}]
+Save["C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\Papers\\2015 Alie Wallace coumarins\\Data\\currentLDAfunctions.m",{lda,groupcontribs,outlierPCA,plotsfromgrid,selectsubsets,filterVars}]
 
 
 
