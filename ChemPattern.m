@@ -132,6 +132,11 @@ FontFamily->"Arial",FontSize->14
 ]
 ],
 
+OptionValue[output]=="varlist",(* Return the contributions of each variable to the first three factors as above, but WITHOUT formatting *)
+Return[
+Transpose@Join[{columnheaderlist}, Round[100eigenvecs^2,1]]
+],
+
 OptionValue[output]=="eigenvectors",(* Return eigenvector matrix *)
 Return[eigenvecs],
 
