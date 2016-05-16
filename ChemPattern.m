@@ -36,8 +36,8 @@
 
 Clear[lda];
 Options[lda]={applyfunc->Identity,output->"2DL",ellipsoidcolor->Automatic,swapaxes->False};
-lda::usage="lda[dataset] carries out Linear Discriminant Analysis on dataset and returns the transformed data as factor scores (default), or other numerical / graphical results. Each row of dataset should contain a sample; the first column contains the class identifier for that sample.\nOptions:\napplyfunc (Identity (default), Standardize, Rescale, ...)\noutput (\"scores\", \"vartable\", \"eigenvectors\", \"eigensystem\", \"2D\" (= 2D score plot), \"2DL\" (= 2D score and loading plots, default), \"3D\", \"3DL\")\nswapaxes (default = {False,False}).";
-lda::outputoptions="The value `1` is not a valid plotting option. Valid options are: \"eigenvectors\" (default), \"eigensystem\", \"vartable\", \"2D\", \"3D\".";
+lda::usage="lda[dataset] carries out Linear Discriminant Analysis on dataset and returns the transformed data as factor scores (default), or other numerical / graphical results. Each row of dataset should contain a sample; the first column contains the class identifier for that sample.\nOptions:\napplyfunc (Identity (default), Standardize, Rescale, ...)\noutput (\"scores\", \"vartable\", \"varlist\", \"eigenvectors\", \"eigensystem\", \"2D\" (= 2D score plot), \"2DL\" (= 2D score and loading plots, default), \"3D\", \"3DL\")\nswapaxes (default = {False,False})\nellipsoidcolor (Automatic, True).";
+lda::outputoptions="The value `1` is not a valid plotting option. Valid options are: \"2DL\" (default), \"2D\", \"3DL\", \"3D\", \"scores\", \"eigenvectors\", \"eigensystem\", \"vartable\", \"varlist\".";
 lda::swapaxesnotboolean="The value `1` is not a valid swapaxes option. Use only True / False or combinations thereof.";
 lda::swapaxeslength="The value `1` given for the swapaxes option is not valid. Acceptable values are a single True / False, to be applied to all axes, or a list containing as many True/False values as there are axes in the requested plot.";
 lda::ellcolor="The value `1` for the ellipsoidcolor option is not valid. Acceptable values are: Automatic, True, False. Automatic settings were used.";
@@ -466,6 +466,26 @@ Grid[{
 
 
 (* ::Section:: *)
+(*Quick PCA helper function*)
+
+
+Clear[pca]
+pca[data_?MatrixQ]:=Module[
+{
+vars=data[[1,2;;]],
+labels=data[[2;;,1]],
+scores,annotated
+},
+scores=PrincipalComponents[data[[2;;,2;;]],Method->"Correlation"][[All,1;;2]];
+annotated=Merge[Identity]@MapThread[
+<|#1->Tooltip[#2,#1]|>&,
+{labels,scores}
+];
+ListPlot[annotated,PlotStyle->PointSize[0.015],ImageSize->Large]
+]
+
+
+(* ::Section:: *)
 (*Saving out function definitions*)
 
 
@@ -473,9 +493,11 @@ Grid[{
 (*Save is useful because it saves dependencies in the definition, but it APPENDS to its output file. It's best to delete the existing file before appending.*)
 
 
-targetfile="C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\Papers\\2015 Alie Wallace coumarins\\Data\\currentLDAfunctions.m"
-If[FileExistsQ[targetfile],Print["Deleting old definitions..."];DeleteFile[targetfile]]
-Save["C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\Papers\\2015 Alie Wallace coumarins\\Data\\currentLDAfunctions.m",{lda,groupcontribs,outlierPCA,plotsfromgrid,selectsubsets,filterVars}]
-
-
-
+Block[
+{targetfile="C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\Papers\\2015 Alie Wallace coumarins\\Data\\currentLDAfunctions.m"},
+If[FileExistsQ[targetfile],Print["Deleting old definitions..."];DeleteFile[targetfile]];
+Save[
+targetfile,
+{lda,groupcontribs,outlierPCA,plotsfromgrid,selectsubsets,filterVars,pca}
+]
+]
