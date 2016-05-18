@@ -494,7 +494,7 @@ ListPlot[annotated,PlotStyle->PointSize[0.015],ImageSize->Large]
 
 
 Block[
-{targetfile="C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\Papers\\2015 Alie Wallace coumarins\\Data\\currentLDAfunctions.m"},
+{targetfile="C:\\Users\\Marco\\Documents\\Alabama\\Dissemination\\LDA implementation\\currentLDAfunctions.m"},
 If[FileExistsQ[targetfile],Print["Deleting old definitions..."];DeleteFile[targetfile]];
 Save[
 targetfile,
