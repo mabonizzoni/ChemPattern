@@ -375,7 +375,7 @@ ImageSize->Scaled[0.25]
 
 Clear[outlierPCA]
 outlierPCA[set_]:=Module[
-{workingdata,eigenvectors,eigenvalues,PCs,contributions},
+{workingdata,eigenvectors,eigenvalues,PCs,contributions,ellipsoids2D},
 workingdata=If[
 NumberQ[set[[ 1,2]]],
 set[[All,2;;]],(* the first row contains data, and not variable labels: do not discard it! *)
@@ -474,14 +474,35 @@ pca[data_?MatrixQ]:=Module[
 {
 vars=data[[1,2;;]],
 labels=data[[2;;,1]],
-scores,annotated
+scores,annotated,scoregroups,
+eigenvals
 },
+
+eigenvals=Eigenvalues@Correlation[data[[2;;,2;;]]];
 scores=PrincipalComponents[data[[2;;,2;;]],Method->"Correlation"][[All,1;;2]];
 annotated=Merge[Identity]@MapThread[
 <|#1->Tooltip[#2,#1]|>&,
 {labels,scores}
 ];
-ListPlot[annotated,PlotStyle->PointSize[0.015],ImageSize->Large]
+scoregroups=GatherBy[Transpose@Insert[Transpose@scores,labels,1],First][[All,All,2;;]];
+
+Show[
+Graphics[
+{Opacity[0],EdgeForm[Black],Ellipsoid[Mean@#,6Covariance@#]}&/@scoregroups
+],
+ListPlot[
+annotated,PlotStyle->PointSize[0.01]
+],
+Frame->True,Axes->False,
+PlotRangePadding->Scaled[.05],
+LabelStyle->Directive[Black,16],
+FrameStyle->Black,
+FrameLabel->{
+Style["Factor 1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Blue],
+Style["Factor 2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Red]
+},
+ImageSize->Large,AspectRatio->1
+]
 ]
 
 
