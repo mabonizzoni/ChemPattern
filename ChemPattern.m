@@ -435,42 +435,69 @@ set[[All,1]],1
 (*filterVars: helper function to use with Manipulate to interactively filter low-contribution variables to LDA*)
 
 
-ClearAll[filterVars]
-Options[filterVars]={output->"2DL"};
+ClearAll[filterVars,iFilterVars]
+filterVars::usage="filterVars[dataset] starts an interactive session to explore variable removal from LDA analysis of dataset. Move the threshold bar with the mouse to change the variable selection threshold.\n
+filterVars[dataset,threshold] returns non-interactive results obtained by removing variables whose contribution is less than the indicated threshold.";
 
-filterVars::usage="filterVars[dataset, threshold] performs LDA on dataset, then removes any variables whose contribution is lower than the set threshold in the first three factors, and repeats LDA on the reduced dataset.\nReturns the old variable contribution table, the LDA scores plot, the loadings plot, and the variable table on the new, reduced dataset.\nTypical interactive usage: Manipulate[filterVars[dataset, t], {t, 0, 20, Appearance -> \"Open\"}]";
+(* If function is called with only one argument, this must be a dataset; interactive manipulation is selected *)
+filterVars[dataset_?(MatrixQ[#[[2;;,2;;]],NumberQ]&)]:=Manipulate[
+iFilterVars[dataset,threshold],
+{{threshold,0},Locator,Appearance->None,TrackingFunction->(threshold=#[[1]];&)},
+Paneled->False
+]
 
-filterVars[data_,threshold_?NonNegative,OptionsPattern[]]:=
-Module[
-{oldvartable,varcontribs,selectedvars,filtereddata,newscoreplot,newloadingplot,newvartable},
-(* Generate LDA results from the input data and collect the variable loading table *)
-oldvartable=lda[data,applyfunc->Standardize,output->"vartable"];
-(* Extract the variable contributions *)
-varcontribs=Cases[oldvartable[[1]]//InputForm,TableForm[list_,TableHeadings->{rowheadings_,_},__]:>Transpose[Insert[Transpose[list],rowheadings,1]]];
-(* Select only variables whose contribution to any of the first three factors is higher than the user-set threshold *)
-selectedvars=Cases[varcontribs,{var_,f1_,f2_,f3_}/;f1>=threshold||f2>=threshold->var,2];
-(* Generate a new data set to pass to LDA which will contain only the filtered variables *)
-filtereddata=Transpose@Prepend[Cases[Transpose@data,{Alternatives@@selectedvars,__}],data[[All,1]]];
+(* If function is called with two arguments, a dataset and a threshold, then a no-interactive single-value result is returned *)
+filterVars[dataset_?(MatrixQ[#[[2;;,2;;]],NumberQ]&),threshold_?NumericQ/;threshold>=0]:=iFilterVars[dataset,threshold]
 
-(* Calculate the new score plot; if a loading plot was requested in output, then calculate one as well *)
-If[StringTake[OptionValue[output],-1]=="L",
-{newscoreplot,newloadingplot}=plotsfromgrid[lda[filtereddata,applyfunc->Standardize,output->OptionValue[output]]],
-newscoreplot=lda[filtereddata,applyfunc->Standardize,output->OptionValue[output]]
+(* Implementation code *)
+iFilterVars[dataset_,threshold_]:=Module[
+{assoc,selectedVars,selectedData,ldaplot,ldavarlist,bchart,evals,evecs},
+
+{evals,evecs}=lda[dataset,output->"eigensystem"];
+assoc=AssociationThread[dataset[[1,2;;]],100Chop[Normalize[evals,Total] . evecs^2]];
+
+selectedVars=Select[assoc,#>=threshold&];
+selectedData=Transpose@Join[{dataset[[All,1]]},Cases[Transpose@dataset,{Alternatives@@Keys[selectedVars],__}]];
+
+ldaplot=Show[
+lda[selectedData,applyfunc->Standardize,output->"2D"],
+ImageSize->Large];
+
+ldavarlist=Reverse@SortBy[{#[[2]]&,#[[3]]&}]@lda[selectedData,applyfunc->Standardize,output->"varlist"][[All,1;;3]];
+
+bchart=BarChart[
+assoc,
+BarOrigin->Left,ChartLabels->Automatic,BarSpacing->0.5,
+ColorFunctionScaling->False,
+ColorFunction->Function[{height},If[height>=threshold,Darker@Green,LightGray]],
+AspectRatio->2,ImageSize->Large,
+Prolog->{Dashing[0.02],Darker@Gray,Thick,HalfLine[{{threshold,0.3},{threshold,10}}]}
 ];
 
-(* Calculate the new variable contribution table *)
-newvartable=lda[filtereddata,applyfunc->Standardize,output->"vartable"];
-
-(* Generate formatted output *)
-If[StringTake[OptionValue[output],-1]=="L",
 Grid[{
-{Show[newscoreplot,ImageSize->Medium],oldvartable},
-{Show[newloadingplot,ImageSize->Medium],newvartable}
-},Alignment->{Center,Center}],
-Grid[{
-{Show[newscoreplot,ImageSize->Medium],oldvartable},
-{SpanFromAbove,newvartable}
-},Alignment->{Center,Center}]
+(*formatting of titles: apply style only if argument is string; otherwise SpanFromLeft looks weird*)
+Function[{s},If[Head[s]===String,Style[s,18,Black,FontFamily->"Trebuchet MS"],s]]/@
+{"Original data set:",
+SpanFromLeft,
+"Filtered data set:"},
+{bchart,
+selectedVars//Round[#,0.1]&//Sort//Reverse//Dataset,
+ldaplot},
+{SpanFromAbove,
+Column[Style[#,Black,Bold,22]&/@{
+"Retained:\n",
+ToString@Length[selectedVars]<>" vars\n",
+ToString@Round[Total@selectedVars,0.1]<>"% info"
+},Right],
+Multicolumn[ldavarlist,4(*organize results in four columns*)]}
+},
+Background->{None,None,{3,2}->LightGray},
+Alignment->{Center,Center},
+Dividers->{{3->Directive[Thick,Black]},{2->Directive[Thick,Black]}},
+Spacings->{
+(*x direction, add spacing btw table and new LDA plot's F2 axis label*){Automatic,3->Offset[1]},
+(*y direction, add spacing btw titles and the new LDA plot's frame*){Automatic,2->Offset[1]}
+}
 ]
 ]
 
@@ -537,6 +564,6 @@ Block[
 If[FileExistsQ[targetfile],Print["Deleting old definitions..."];DeleteFile[targetfile]];
 Save[
 targetfile,
-{lda,groupcontribs,outlierPCA,plotsfromgrid,selectVarSubsets,filterVars,pca}
+{lda,groupcontribs,outlierPCA,plotsfromgrid,selectVarSubsets,filterVars,iFilterVars,pca}
 ]
 ]
