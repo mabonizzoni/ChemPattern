@@ -479,7 +479,7 @@ Grid[{
 Function[{s},If[Head[s]===String,Style[s,18,Black,FontFamily->"Trebuchet MS"],s]]/@
 {"Original data set:",
 SpanFromLeft,
-"Filtered data set:"},
+"Filtered data set: (threshold = "<>ToString[Round[threshold,0.01]]<>")"},
 {bchart,
 selectedVars//Round[#,0.1]&//Sort//Reverse//Dataset,
 ldaplot},
