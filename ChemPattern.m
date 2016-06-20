@@ -98,7 +98,9 @@ Sb=Total[Map[(Transpose[{#-grandmean}] . {#-grandmean}&),clustermeans]];
 
 (* Maximize the Sb/Sw ratio by solving the equivalent eigenproblem *)
 (* The Check[] wrapper around Inverse stops computation and returns if the inverse cannot be computed, e.g. for singular matrices *)
-{eigenvals,eigenvecs}=Chop@Eigensystem[Check[Inverse[Sw] . Sb,Abort[],{Inverse::sing}]];
+(*old Implementation:*)
+(*{eigenvals,eigenvecs}=Chop@Eigensystem[Check[Inverse[Sw].Sb,Abort[],{Inverse::sing}]];*)
+{eigenvals,eigenvecs}=Chop@Eigensystem[LinearSolve[Sw,Sb]];
 
 (* Calculate data scores along the LDA dimensions *)
 transformeddata=Chop[dataset[[2;;,2;;]] . Transpose@eigenvecs];
