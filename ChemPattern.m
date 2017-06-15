@@ -554,6 +554,40 @@ ImageSize->Large,AspectRatio->1
 
 
 (* ::Section:: *)
+(*removeOutliers: helper function to remove outlier points*)
+
+
+ClearAll[removeOutliers]
+
+removeOutliers::dups="Duplicate sample names found in list of points to remove";
+removeOutliers::missing="One of the specified sample names does not exist in the full dataset: check spelling?";
+
+removeOutliers[dataset_?MatrixQ][argseq:{_String,_List}..]:=Module[
+{allSamplesInSet,listToRemove,datasetAsAssociation,removalRules},
+listToRemove=List@argseq;
+allSamplesInSet=DeleteDuplicates[dataset[[2;;,1]]];
+
+(* Check for duplicate sample names in argseq *)
+If[Not@*DuplicateFreeQ@listToRemove[[All,1]],Message[removeOutliers::dups];Abort[]];
+(* Check for mis-spelled or otherwise non-matching sample names in argseq *)
+If[allSamplesInSet~(Not@*ContainsAll)~listToRemove[[All,1]],Message[removeOutliers::missing];Abort[]];
+
+datasetAsAssociation=GroupBy[dataset,First];
+
+removalRules=Join[
+AssociationThread[allSamplesInSet->ConstantArray[{},Length@allSamplesInSet]],
+AssociationThread[Rule@@Transpose@listToRemove]
+];
+
+Join[
+{dataset[[1]]},
+Flatten[#,1]&@
+KeyValueMap[datasetAsAssociation[#1][[Range[Length[datasetAsAssociation[#1]]]~Complement~#2]]&,removalRules]
+]
+]
+
+
+(* ::Section:: *)
 (*Saving out function definitions*)
 
 
@@ -566,6 +600,6 @@ Block[
 If[FileExistsQ[targetfile],Print["Deleting old definitions..."];DeleteFile[targetfile]];
 Save[
 targetfile,
-{lda,groupcontribs,outlierPCA,plotsfromgrid,selectVarSubsets,filterVars,iFilterVars,pca}
+{lda,groupcontribs,outlierPCA,removeOutliers,plotsfromgrid,selectVarSubsets,filterVars,iFilterVars,pca}
 ]
 ]
