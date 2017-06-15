@@ -375,17 +375,17 @@ ImageSize->Scaled[0.25]
 (*Detection of outliers using PCA*)
 
 
-ClearAll[outlierPCA]
+ClearAll[outlierPCA,iOutlierPCA]
 
-outlierPCA::usage="outlierPCA[set] runs PCA analysis on a single set of replicates of an analyte to help in the detection of an outlier\nTypical usage with datasets prepared for LDA analysis: outlierPCA /@ GatherBy[fullDataSet[[ 2;; ]], First] // Multicolumn";
+outlierPCA::usage="outlierPCA[fullDataSet] runs PCA analysis on each set of replicates for samples in a full analytical data set (i.e. a plate), to help in the detection of outliers.\nIt expects the first row of the dataset to contain instrumental variable names, and the first column to contain text labels for each sample.";
 
-outlierPCA[set_]:=Module[
+(* The function now makes the assumption that a full dataset will be fed in, complete with column titles, so the first row is automatically discarded *)
+outlierPCA[dataset_]:=Multicolumn[iOutlierPCA/@GatherBy[dataset[[2;;]],First]]
+
+(*The following worker function is passed each subset of data by the outlierPCA[] front-end function *)
+iOutlierPCA[set_]:=Module[
 {workingdata,eigenvectors,eigenvalues,PCs,contributions,ellipsoids2D},
-workingdata=If[
-NumberQ[set[[ 1,2]]],
-set[[All,2;;]],(* the first row contains data, and not variable labels: do not discard it! *)
-set[[2;;,2;;]](* the first row contains variable labels: discard it *)
-];
+workingdata=set[[All,2;;]];
 {eigenvalues,eigenvectors}=Eigensystem@Correlation@workingdata;
 PCs=Standardize[workingdata] . Transpose[eigenvectors];
 contributions=Round[100Normalize[eigenvalues,Total],0.1];
@@ -419,7 +419,7 @@ plotsfromgrid[nongridobject_]:=nongridobject
 
 
 (* ::Section:: *)
-(*selectsubsets: helper function to select homogeneous instrumental variable subsets for analysis*)
+(*selectVarSubsets: helper function to select homogeneous instrumental variable subsets for analysis*)
 
 
 ClearAll[selectVarSubsets]
@@ -559,6 +559,7 @@ ImageSize->Large,AspectRatio->1
 
 ClearAll[removeOutliers]
 
+removeOutliers::usage="removeOutliers[dataset][{\"Sample1\", {1, 2, 4, ..}}, {\"Sample2\", {2, 5, 4, ..}}, ..]";
 removeOutliers::dups="Duplicate sample names found in list of points to remove";
 removeOutliers::missing="One of the specified sample names does not exist in the full dataset: check spelling?";
 
@@ -600,6 +601,6 @@ Block[
 If[FileExistsQ[targetfile],Print["Deleting old definitions..."];DeleteFile[targetfile]];
 Save[
 targetfile,
-{lda,groupcontribs,outlierPCA,removeOutliers,plotsfromgrid,selectVarSubsets,filterVars,iFilterVars,pca}
+{lda,groupcontribs,outlierPCA,iOutlierPCA,removeOutliers,plotsfromgrid,selectVarSubsets,filterVars,iFilterVars,pca}
 ]
 ]
