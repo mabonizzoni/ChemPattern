@@ -43,7 +43,7 @@ lda::swapaxeslength="The value `1` given for the swapaxes option is not valid. A
 lda::ellcolor="The value `1` for the ellipsoidcolor option is not valid. Acceptable values are: Automatic, True, False. Automatic settings were used.";
 
 
-lda[matrix_/;MatrixQ[matrix],OptionsPattern[]]:=Module[
+lda[matrix_?MatrixQ,OptionsPattern[]]:=Module[
 {(* the definition below is important, although it looks silly!*)
 (* If one used matrix directly in the function body, the VALUE of matrix would be substituted *)
 (* everywhere BEFORE any further evaluation. the name of the pattern is not a proper variable!! *)
@@ -242,7 +242,7 @@ Switch[Length@OptionValue[swapaxes],
 
 0, (* Atomic expression, i.e. a single value was passed *)
 Switch[OptionValue[swapaxes],
-True,xflip=yflip=zflip=-1,(* swap both axes *)
+True,xflip=yflip=zflip=-1,(* swap all axes *)
 False,xflip=yflip=zflip=1,(* don't swap any axis *)
 _,(* incorrect option; throw error and return Null *)Message[lda::swapaxesnotboolean,OptionValue[swapaxes]];Return[]
 ],
@@ -380,7 +380,13 @@ ClearAll[outlierPCA,iOutlierPCA]
 outlierPCA::usage="outlierPCA[fullDataSet] runs PCA analysis on each set of replicates for samples in a full analytical data set (i.e. a plate), to help in the detection of outliers.\nIt expects the first row of the dataset to contain instrumental variable names, and the first column to contain text labels for each sample.";
 
 (* The function now makes the assumption that a full dataset will be fed in, complete with column titles, so the first row is automatically discarded *)
-outlierPCA[dataset_]:=Multicolumn[iOutlierPCA/@GatherBy[dataset[[2;;]],First]]
+outlierPCA[dataset_]:=Module[{grouped},
+grouped=If[NumberQ[dataset[[ 1,2]]],
+{dataset},(* the first row contains data, not variable labels: keep it. Also, "grouped" must be a list of groups to map over, so wrap data in one more level of List *)
+GatherBy[dataset[[2;;]],First](* the first row contains variable labels: discard it *)
+];
+Multicolumn[iOutlierPCA/@grouped]
+]
 
 (*The following worker function is passed each subset of data by the outlierPCA[] front-end function *)
 iOutlierPCA[set_]:=Module[
