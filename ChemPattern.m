@@ -35,8 +35,8 @@
 
 
 ClearAll[lda]
-Options[lda]={applyfunc->Identity,output->"2DL",ellipsoidcolor->Automatic,swapaxes->False};
-lda::usage="lda[dataset] carries out Linear Discriminant Analysis on dataset and returns the transformed data as factor scores (default), or other numerical / graphical results. Each row of dataset should contain a sample; the first column contains the class identifier for that sample.\nOptions:\napplyfunc (Identity (default), Standardize, Rescale, ...)\noutput (\"scores\", \"vartable\", \"varlist\", \"eigenvectors\", \"eigensystem\", \"2D\" (= 2D score plot), \"2DL\" (= 2D score and loading plots, default), \"3D\", \"3DL\")\nswapaxes (default = {False,False})\nellipsoidcolor (Automatic, True).";
+Options[lda]={applyfunc->Standardize,output->"2DL",ellipsoidcolor->Automatic,swapaxes->False};
+lda::usage="lda[dataset] carries out Linear Discriminant Analysis on dataset and returns the transformed data as factor scores (default), or other numerical / graphical results. Each row of dataset should contain a sample; the first column contains the class identifier for that sample.\nOptions:\napplyfunc (Identity, Standardize (default), Rescale, ...)\noutput (\"scores\", \"vartable\", \"varlist\", \"eigenvectors\", \"eigensystem\", \"2D\" (= 2D score plot), \"2DL\" (= 2D score and loading plots, default), \"3D\", \"3DL\")\nswapaxes (default = {False,False})\nellipsoidcolor (Automatic, True).";
 lda::outputoptions="The value `1` is not a valid plotting option. Valid options are: \"2DL\" (default), \"2D\", \"3DL\", \"3D\", \"scores\", \"eigenvectors\", \"eigensystem\", \"vartable\", \"varlist\".";
 lda::swapaxesnotboolean="The value `1` is not a valid swapaxes option. Use only True / False or combinations thereof.";
 lda::swapaxeslength="The value `1` given for the swapaxes option is not valid. Acceptable values are a single True / False, to be applied to all axes, or a list containing as many True/False values as there are axes in the requested plot.";
