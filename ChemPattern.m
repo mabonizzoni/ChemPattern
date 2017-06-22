@@ -595,6 +595,40 @@ KeyValueMap[datasetAsAssociation[#1][[Range[Length[datasetAsAssociation[#1]]]~Co
 
 
 (* ::Section:: *)
+(*overview: generates sparklines for each instrumental variable in the dataset, for quick indentification of useless variables*)
+
+
+ClearAll[overview];
+
+overview::usage="overview[dataset]\nThis function produces quick visual aids to examine the quality of information conveyed by each instrumental variable in a dataset.\nThe visualization is inspired by sparklines (i.e. no axes, no ticks).\n";
+
+(*The following informs the syntax coloring engine that overview takes only one argument; 
+if mistakenly used with more, then the front end will color further arguments in red*)
+SyntaxInformation[overview]="ArgumentsPattern"->{_};
+
+overview[data_?MatrixQ]:=
+Module[{workingdata},
+(*Check for the presence of sample labels, and remove them if present*)
+workingdata=If[NumberQ@data[[2,1]],data,data[[All,2;;]]];
+Multicolumn[
+Framed[
+ListPlot[
+{##2},
+PlotLabel->Style[#1,14,Red],
+PlotRangePadding->{Scaled[0.03],{Scaled[0.05],Scaled[0.1]}},
+Axes->None,
+(*Do not display a frame around the plot area.
+Although this is already the default for ListPlot,
+let us just make sure, in case the default has been altered*)
+Frame->None
+]
+]&@@@Transpose[workingdata],
+Appearance->"Horizontal"
+]
+]
+
+
+(* ::Section:: *)
 (*Saving out function definitions*)
 
 
@@ -607,6 +641,6 @@ Block[
 If[FileExistsQ[targetfile],Print["Deleting old definitions..."];DeleteFile[targetfile]];
 Save[
 targetfile,
-{lda,groupcontribs,outlierPCA,iOutlierPCA,removeOutliers,plotsfromgrid,selectVarSubsets,filterVars,iFilterVars,pca}
+{lda,groupcontribs,outlierPCA,iOutlierPCA,removeOutliers,plotsfromgrid,selectVarSubsets,filterVars,iFilterVars,pca,overview}
 ]
 ]
