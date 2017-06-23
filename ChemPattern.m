@@ -5,11 +5,11 @@
 
 
 (* ::Text:: *)
-(*It is typically suggested that the dataset be normalized/rescaled before running LDA on it. However, normalization of all values to the interval (0,1) actually throws away information about the different dynamic ranges of different variables. If any normalization must be done, just in order to deal with numbers of the same order of magnitude, then Standardize is the most appropriate.*)
+(*It is typically suggested that the dataset be normalized/rescaled before running LDA on it. However, normalization of all values to the interval (0,1) actually throws away information about the different dynamic ranges of different variables. If any normalization must be done, just in order to deal with numbers of the same order of magnitude, then standardization is more appropriate.*)
 (**)
 (*However, if the LDA is run on the normalized dataset, the eigenvectors cannot be properly used to transform new non-normalized data!! Also, new non-normalized data cannot be normalized in the same way that the original training set was, unless we record and transfer the maximum and minimum values used in the normalization of the original training set. This is probably a bad idea and a serious complication, at least at the initial level. *)
 (**)
-(*In the function below normalization is turned OFF by default, i.e. running LDA with no switch will assume that the data should not be normalized, and that the dataset has headers. If this assumption is incorrect, and in fact the dataset doesn't have headers, then the first row of the dataset will be discarded. Although this assumption may lead to wasting a sample replicate from the first group, it is still safer than assuming that no headers are present: in fact, in that case the headers will hang the calculation and one has to quit the kernel to recover.*)
+(*In the function below normalization is turned ON by default, i.e. running LDA with no switch will assume that the data should be normalized, and that the dataset has headers. If this assumption is incorrect, and in fact the dataset doesn't have headers, then the first row of the dataset will be discarded. Although this assumption may lead to wasting a sample replicate from the first group, it is still safer than assuming that no headers are present: in fact, in that case the headers will hang the calculation and one has to quit the kernel to recover.*)
 
 
 (* ::Section:: *)
@@ -448,30 +448,31 @@ filterVars::usage="filterVars[dataset] starts an interactive session to explore 
 filterVars[dataset,threshold] returns non-interactive results obtained by removing variables whose contribution is less than the indicated threshold.";
 
 (* If function is called with only one argument, this must be a dataset; interactive manipulation is selected *)
-filterVars[dataset_?(MatrixQ[#[[2;;,2;;]],NumberQ]&)]:=Manipulate[
+filterVars[dataset_?(MatrixQ[#[[2;;,2;;]],NumberQ]&)]:=DynamicModule[
+{threshold=0},(*Initially threshold is set to zero*)
+Dynamic[
+MapAt[(*MapAt wraps the bar chart received from iFilterVars in ClickPane and uses mouse clicks to adjust threshold*)
+Function[plot,ClickPane[plot,(threshold=First@#)&]],
 iFilterVars[dataset,threshold],
-{{threshold,0},Locator,Appearance->None,TrackingFunction->(threshold=#[[1]];&)},
-Paneled->False
+{1,2,1}(*position of the bar chart in the grid returned by iFilterVars*)
+],
+(*Only tracks changes in threshold; otherwise graphics are unresponsive and jittery*)
+TrackedSymbols:>{threshold}
+]
 ]
 
-(* If function is called with two arguments, a dataset and a threshold, then a no-interactive single-value result is returned *)
+(* If function is called with two arguments, a dataset and a threshold, then a non-interactive single-value result is returned *)
 filterVars[dataset_?(MatrixQ[#[[2;;,2;;]],NumberQ]&),threshold_?NumericQ/;threshold>=0]:=iFilterVars[dataset,threshold]
 
 (* Implementation code *)
 iFilterVars[dataset_,threshold_]:=Module[
 {assoc,selectedVars,selectedData,ldaplot,ldavarlist,bchart,evals,evecs},
 
-{evals,evecs}=lda[dataset,output->"eigensystem"];
+{evals,evecs}=lda[dataset,applyfunc->Standardize,output->"eigensystem"];
 assoc=AssociationThread[dataset[[1,2;;]],100Chop[Normalize[evals,Total] . evecs^2]];
 
 selectedVars=Select[assoc,#>=threshold&];
 selectedData=Transpose@Join[{dataset[[All,1]]},Cases[Transpose@dataset,{Alternatives@@Keys[selectedVars],__}]];
-
-ldaplot=Show[
-lda[selectedData,applyfunc->Standardize,output->"2D"],
-ImageSize->Large];
-
-ldavarlist=Reverse@SortBy[{#[[2]]&,#[[3]]&}]@lda[selectedData,applyfunc->Standardize,output->"varlist"][[All,1;;3]];
 
 bchart=BarChart[
 assoc,
@@ -482,7 +483,14 @@ AspectRatio->2,ImageSize->Large,
 Prolog->{Dashing[0.02],Darker@Gray,Thick,HalfLine[{{threshold,0.3},{threshold,10}}]}
 ];
 
-Grid[{
+ldaplot=Show[
+lda[selectedData,applyfunc->Standardize,output->"2D"],
+ImageSize->Large];
+
+ldavarlist=Reverse@SortBy[{#[[2]]&,#[[3]]&}]@lda[selectedData,applyfunc->Standardize,output->"varlist"][[All,1;;3]];
+
+Grid[
+{
 (*formatting of titles: apply style only if argument is string; otherwise SpanFromLeft looks weird*)
 Function[{s},If[Head[s]===String,Style[s,18,Black,FontFamily->"Trebuchet MS"],s]]/@
 {"Original data set:",
