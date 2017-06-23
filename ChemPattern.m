@@ -5,11 +5,11 @@
 
 
 (* ::Text:: *)
-(*It is typically suggested that the dataset be normalized/rescaled before running LDA on it. However, normalization of all values to the interval (0,1) actually throws away information about the different dynamic ranges of different variables. If any normalization must be done, just in order to deal with numbers of the same order of magnitude, then standardization is more appropriate.*)
+(*It is typically suggested that the dataset be normalized/rescaled before running LDA on it. However, normalization of all values to the interval (0,1) actually throws away information about the different dynamic ranges of different variables. If any normalization must be done, just in order to deal with numbers of the same order of magnitude, then Standardize is the most appropriate.*)
 (**)
 (*However, if the LDA is run on the normalized dataset, the eigenvectors cannot be properly used to transform new non-normalized data!! Also, new non-normalized data cannot be normalized in the same way that the original training set was, unless we record and transfer the maximum and minimum values used in the normalization of the original training set. This is probably a bad idea and a serious complication, at least at the initial level. *)
 (**)
-(*In the function below normalization is turned ON by default, i.e. running LDA with no switch will assume that the data should be normalized, and that the dataset has headers. If this assumption is incorrect, and in fact the dataset doesn't have headers, then the first row of the dataset will be discarded. Although this assumption may lead to wasting a sample replicate from the first group, it is still safer than assuming that no headers are present: in fact, in that case the headers will hang the calculation and one has to quit the kernel to recover.*)
+(*In the function below normalization is turned OFF by default, i.e. running LDA with no switch will assume that the data should not be normalized, and that the dataset has headers. If this assumption is incorrect, and in fact the dataset doesn't have headers, then the first row of the dataset will be discarded. Although this assumption may lead to wasting a sample replicate from the first group, it is still safer than assuming that no headers are present: in fact, in that case the headers will hang the calculation and one has to quit the kernel to recover.*)
 
 
 (* ::Section:: *)
@@ -444,16 +444,19 @@ set[[All,1]],1
 
 
 ClearAll[filterVars,iFilterVars]
-filterVars::usage="filterVars[dataset] starts an interactive session to explore variable removal from LDA analysis of dataset. Move the threshold bar with the mouse to change the variable selection threshold.\n
-filterVars[dataset,threshold] returns non-interactive results obtained by removing variables whose contribution is less than the indicated threshold.";
+filterVars::usage="filterVars[dataset] starts an interactive session to explore variable removal from LDA analysis of dataset. Move the threshold bar with the mouse to change the variable selection threshold.
+filterVars[dataset, threshold] returns non-interactive results obtained by removing variables whose contribution is less than the indicated threshold.
+filterVars[dataset, threshold, output -> \"ReducedSet\"] returns a reduced data set obtained by removing variables whose contribution is less than the indicated threshold.";
 
-(* If function is called with only one argument, this must be a dataset; interactive manipulation is selected *)
+filterVars::alldiscarded="The requested threshold is so high that all variables were removed from the dataset. Consider lowering it.";
+
+(* If function is called with only one argument, interactive manipulation is selected; the variable must be a dataset *)
 filterVars[dataset_?(MatrixQ[#[[2;;,2;;]],NumberQ]&)]:=DynamicModule[
 {threshold=0},(*Initially threshold is set to zero*)
 Dynamic[
 MapAt[(*MapAt wraps the bar chart received from iFilterVars in ClickPane and uses mouse clicks to adjust threshold*)
 Function[plot,ClickPane[plot,(threshold=First@#)&]],
-iFilterVars[dataset,threshold],
+iFilterVars[yx,threshold],
 {1,2,1}(*position of the bar chart in the grid returned by iFilterVars*)
 ],
 (*Only tracks changes in threshold; otherwise graphics are unresponsive and jittery*)
@@ -461,8 +464,23 @@ TrackedSymbols:>{threshold}
 ]
 ]
 
-(* If function is called with two arguments, a dataset and a threshold, then a non-interactive single-value result is returned *)
+(* If function is called with two arguments, a dataset and a threshold, then a non-interactive single-value graphical results are returned *)
 filterVars[dataset_?(MatrixQ[#[[2;;,2;;]],NumberQ]&),threshold_?NumericQ/;threshold>=0]:=iFilterVars[dataset,threshold]
+
+(* If function is called with two arguments (i.e. dataset and threshold), and output \[Rule] "ReducedSet" is included, then a reduced data set is returned instead of graphical results *)
+filterVars[dataset_?(MatrixQ[#[[2;;,2;;]],NumberQ]&),threshold_?NumericQ/;threshold>=0,output->"ReducedSet"]:=Module[
+{evals,evecs,assoc,selectedVars},
+
+{evals,evecs}=lda[dataset,applyfunc->Standardize,output->"eigensystem"];
+assoc=AssociationThread[dataset[[1,2;;]],100Chop[Normalize[evals,Total] . evecs^2]];
+selectedVars=Select[assoc,#>=threshold&];
+
+(* Inform the user if the threshold is so high that all variables are discarded *)
+If[Length[selectedVars]==0,Message[filterVars::alldiscarded]];
+
+(*Collect and compile an output data set*)
+Transpose@Join[{dataset[[All,1]]},Cases[Transpose@dataset,{Alternatives@@Keys[selectedVars],__}]]
+]
 
 (* Implementation code *)
 iFilterVars[dataset_,threshold_]:=Module[
