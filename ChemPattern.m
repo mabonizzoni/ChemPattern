@@ -405,6 +405,13 @@ ImageSize->Scaled[0.25]
 (*Detection of outliers using PCA*)
 
 
+(* ::Text:: *)
+(*The old outlierPCA used calculated the principal components using the eigensystem of the correlation of the data. *)
+(*This was always VERY fragile, and had recently become the least dependable link in the toolchain.*)
+(**)
+(*This function has been rewritten (2017-06-26) to use the built-in PrincipalComponents[]. The built-in is much more robust, probably because it implements SVD or similar.*)
+
+
 (* ::Input::Initialization:: *)
 ClearAll[iOutlierPCA]
 
@@ -419,20 +426,17 @@ Multicolumn[iOutlierPCA/@grouped]
 
 (*The following worker function is passed each subset of data by the outlierPCA[] front-end function *)
 iOutlierPCA[set_]:=Module[
-{workingdata,eigenvectors,eigenvalues,PCs,contributions,ellipsoids2D},
-workingdata=set[[All,2;;]];
-{eigenvalues,eigenvectors}=Eigensystem@Correlation@workingdata;
-PCs=Standardize[workingdata] . Transpose[eigenvectors];
-contributions=Round[100Normalize[eigenvalues,Total],0.1];
+{PCs,ellipsoids2D},
+PCs=PrincipalComponents[set[[All,2;;]],Method->"Correlation"][[All,1;;2]];
 Show[{
 ListPlot[
-MapIndexed[Labeled[#1,First@#2]&,PCs[[All,1;;2]]],
+MapIndexed[Labeled[#1,First@#2]&,PCs],
 AspectRatio->1,PlotStyle->PointSize[0.02],
 Axes->False,Frame->True,FrameStyle->Directive[Black,FontSize->14],
-FrameLabel->{"PC1 ("<>ToString[contributions[[1]]]<>"%)","PC2 ("<>ToString[contributions[[2]]]<>"%)"},
+FrameTicks->None,(* Absolute values of the scores do not convey much meaning here, so I don't bother showing them *)
 Epilog->Text[Style[set[[2,1]],Red,Bold,FontSize->18],Scaled[{0.99,0.95}],{1,0}]
 ],
-Graphics@{Opacity[0],EdgeForm[{Gray,Dashed,Thick}],Ellipsoid[Mean@PCs[[All,1;;2]],6Covariance@PCs[[All,1;;2]]]}
+Graphics@{Opacity[0],EdgeForm[{Gray,Dashed,Thick}],Ellipsoid[Mean@PCs,6Covariance@PCs]}
 },
 PlotRange->All,PlotRangePadding->Scaled[0.1],ImageSize->Medium
 ]
