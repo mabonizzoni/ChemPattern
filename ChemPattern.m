@@ -421,7 +421,7 @@ grouped=If[NumberQ[dataset[[ 1,2]]],
 {dataset},(* the first row contains data, not variable labels: keep it. Also, "grouped" must be a list of groups to map over, so wrap data in one more level of List *)
 GatherBy[dataset[[2;;]],First](* the first row contains variable labels: discard it *)
 ];
-Multicolumn[iOutlierPCA/@grouped]
+iOutlierPCA/@grouped
 ]
 
 (*The following worker function is passed each subset of data by the outlierPCA[] front-end function *)
