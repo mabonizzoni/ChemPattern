@@ -12,8 +12,8 @@
 (* ::Input::Initialization:: *)
 BeginPackage["lda`"]
 
-Unprotect[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,pca,removeOutliers,overview];
-ClearAll[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,pca,removeOutliers,overview];
+Unprotect[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview];
+ClearAll[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview];
 
 
 (* ::Input::Initialization:: *)
@@ -30,6 +30,8 @@ plotsfromgrid::usage="plotsfromgrid[graphicalResultsFromLDA] returns a list of t
 selectVarSubsets::usage="selectVarSubsets[dataset, \"criterion string\"] selects a homogeneous subset of instrumental variable for analysis.\n Examples may be selection of all absorbance variables (e.g. criterion = \"Abs\", all the variables measured at a certain wavelength (e.g. criterion = \"450\"), etc.";
 
 filterVars::usage="filterVars[dataset] starts an interactive session to explore variable removal from LDA analysis of dataset. Move the threshold bar with the mouse to change the variable selection threshold.\nfilterVars[dataset, threshold] returns non-interactive results obtained by removing variables whose contribution is less than the indicated threshold.\nfilterVars[dataset, threshold, output -> \"ReducedSet\"] returns a reduced data set obtained by removing variables whose contribution is less than the indicated threshold.";
+
+retainedInfo::usage="retainedInfo[dataset] calculates the % information retained as a function of filtering threshold\n\toutput -> \"Plot\"\treturns the data as a plot (default)\n\toutput -> \"List\"\t returns the results as a list of {threshold, % information retained}";
 
 pca::usage="pca[dataset] performs PCA analysis on the data in dataset after standardization";
 
@@ -660,6 +662,50 @@ Spacings->{
 ]
 
 
+(* ::Section:: *)
+(*retainedInfo: a function to calculate the % retained information as a function of filter threshold*)
+
+
+(* ::Input::Initialization:: *)
+ClearAll[iRetainedInfo,iMaxThreshold,iRetainedInfoPlot,iRetainedInfoList]
+
+Options[retainedInfo]={output->"Plot"};
+
+retainedInfo[dataset_,OptionsPattern[]]:=Module[{eigensystem},
+eigensystem=lda[dataset,applyfunc->Standardize,output->"eigensystem"];
+Switch[OptionValue[output],
+"Plot",iRetainedInfoPlot[eigensystem],
+"List",iRetainedInfoList[eigensystem],
+_,Message[retainedInfo::usage];Abort[]
+]
+]
+
+iMaxThreshold[{evals_,evecs_}]:=Max[100Chop[Normalize[evals,Total] . evecs^2]]
+
+iRetainedInfo[{evals_,evecs_},threshold_]:=Module[
+{infolist},
+infolist=100Chop[Normalize[evals,Total] . evecs^2];
+Quantity[Total@Select[infolist,#>=threshold&],"Percent"]
+]
+
+iRetainedInfoPlot[eigensystem_]:=Module[{},
+Plot[
+iRetainedInfo[eigensystem,t],{t,0,iMaxThreshold[eigensystem]},
+PlotRange->{0,100},PlotRangePadding->{Scaled[0.02],{0,2}},
+Axes->False,Frame->{{True,False},{True,False}},
+FrameTicks->{Automatic,{#,ToString[#]<>"%"}&/@Range[0,100,20]},
+FrameStyle->Directive[Black,14],
+FrameLabel->(Style[#,18]&/@{"% threshold to discard variables","info retained in reduced system"}),
+ImageSize->Large
+]
+]
+
+iRetainedInfoList[eigensystem_]:=With[
+{max=iMaxThreshold[eigensystem]},
+Table[{t,iRetainedInfo[eigensystem,t]},{t,0,max,max/200}]
+]
+
+
 (* ::Section::Initialization:: *)
 (*pca: a quick PCA helper function*)
 
@@ -777,7 +823,7 @@ Appearance->"Horizontal"
 (* ::Input::Initialization:: *)
 End[]
 
-Protect[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,pca,removeOutliers,overview]
+Protect[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview]
 
 EndPackage[]
 
