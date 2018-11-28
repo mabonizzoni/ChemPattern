@@ -12,8 +12,8 @@
 (* ::Input::Initialization:: *)
 BeginPackage["lda`"]
 
-Unprotect[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,retainedInfo,effectOfRemovingVariables,pca,removeOutliers,overview];
-ClearAll[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,retainedInfo,effectOfRemovingVariables,pca,removeOutliers,overview];
+Unprotect[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,retainedInfo,effectOfRemovingVariables,pca,removeOutliers,overview,projectorLDA];
+ClearAll[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,retainedInfo,effectOfRemovingVariables,pca,removeOutliers,overview,projectorLDA];
 
 
 (* ::Input::Initialization:: *)
@@ -41,6 +41,8 @@ removeOutliers::usage="removeOutliers[dataset][{\"Sample1\", {1, 2, 4, ..}}, {\"
 
 overview::usage="overview[dataset]\nThis function produces quick visual aids to examine the quality of information conveyed by each instrumental variable in a dataset.\nThe visualization is inspired by sparklines (i.e. no axes, no ticks).";
 
+projectorLDA::usage="projectorLDA[originalDataSet,(\"suffix to add to original data set labels\"),datasetToBeProjected,(\"suffix to add to projected data set labels\")]\nThis function projects points from the second data set according to the transformation ruls obtained by standard LDA on the first data set.";
+
 
 (* ::Section::Initialization:: *)
 (*Implementation code below*)
@@ -55,7 +57,7 @@ Begin["`Private`"]
 
 
 (* ::Subsection::Initialization:: *)
-(*Things that need to be done:*)
+(*Steps accomplished by the code below, in order:*)
 
 
 (* ::Text::Initialization:: *)
@@ -852,7 +854,7 @@ KeyValueMap[datasetAsAssociation[#1][[Range[Length[datasetAsAssociation[#1]]]~Co
 
 
 (* ::Section::Initialization:: *)
-(*overview: generates sparklines for each instrumental variable in the dataset, for quick indentification of useless variables*)
+(*overview: generates sparklines for each instrumental variable in the dataset, for quick identification of useless variables*)
 
 
 (* ::Input::Initialization:: *)
@@ -882,6 +884,53 @@ Appearance->"Horizontal"
 ]
 
 
+(* ::Section:: *)
+(*projectorLDA : allows the projection of a second data set onto the LDA score plot generated  from the first one*)
+
+
+(* ::Input::Initialization:: *)
+(* The number of variables in the projector and projected set must be the same *)
+projectorLDA::incompdims="The number of variables (i.e. columns) in the two sets is not the same.";
+
+(* Base code *)
+projectorLDA[projectorSet_?ArrayQ,projectorSuffix_String,projectedSet_?ArrayQ,projectedSuffix_String,options:OptionsPattern[lda]]:=Module[
+{
+projectedScoresAsTable,projectedScoresAsAssociation,
+labelsForProjector,labelsForProjected,projectorSetRelabeled
+},
+
+If[Last@Dimensions[projectorSet]!=Last@Dimensions[projectedSet],Message[projectorLDA::incompdims];Abort[]];
+
+(* Extract and modify labels to add suffixes *)
+labelsForProjector=StringJoin[#,projectorSuffix]&/@projectorSet[[2;;,1]];
+labelsForProjected=StringJoin[#,projectedSuffix]&/@projectedSet[[2;;,1]];
+
+(* Relabel the projector set with the new labels to which the requested suffix has been added *)
+projectorSetRelabeled=projectorSet;
+projectorSetRelabeled[[2;;,1]]=labelsForProjector;
+
+(* Calculate n-dimensional scores, then remove adventitious imaginary parts (Chop), then keep only first two dimensions *)
+projectedScoresAsTable=Chop[
+Standardize[ projectedSet[[2;;,2;;]] ] . Transpose[ lda[projectorSetRelabeled,output->"eigenvectors"] ]
+][[All,;;2]];
+
+projectedScoresAsAssociation=GroupBy[First->(Tooltip[Last[#],First[#]]&)]@Thread[labelsForProjected->projectedScoresAsTable];
+
+Show[
+(* use the usual LDA function to generate a base plot *)
+(* this also includes the usual formatting and factor contribution calculations *)
+lda[projectorSetRelabeled,output->"2D",ellipsoidcolor->True,options],
+(* generate a second plot from the values *)
+ListPlot[Values@projectedScoresAsAssociation]
+]
+]
+
+(* Helper argument patterns that handle the various cases of missing suffixes *)
+projectorLDA[projectorSet_?ArrayQ,projectorSuffix_String,projectedSet_?ArrayQ,options:OptionsPattern[lda]]:=projectorLDA[projectorSet,projectorSuffix,projectedSet,"",options]
+projectorLDA[projectorSet_?ArrayQ,projectedSet_?ArrayQ,projectedSuffix_String,options:OptionsPattern[lda]]:=projectorLDA[projectorSet,"",projectedSet,projectedSuffix,options]
+projectorLDA[projectorSet_?ArrayQ,projectedSet_?ArrayQ,options:OptionsPattern[lda]]:=projectorLDA[projectorSet,"",projectedSet,"",options]
+
+
 (* ::Section::Initialization:: *)
 (*Closing out the package*)
 
@@ -889,7 +938,7 @@ Appearance->"Horizontal"
 (* ::Input::Initialization:: *)
 End[]
 
-Protect[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,retainedInfo,effectOfRemovingVariables,pca,removeOutliers,overview]
+Protect[lda,groupcontribs,outlierPCA,outlierPCAauto,plotsfromgrid,selectVarSubsets,filterVars,retainedInfo,effectOfRemovingVariables,pca,removeOutliers,overview,projectorLDA]
 
 EndPackage[]
 
