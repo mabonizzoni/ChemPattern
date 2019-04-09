@@ -878,15 +878,18 @@ Evaluate@iterator
 
 
 (* ::Input::Initialization:: *)
-pca[data_?MatrixQ]:=Module[
+Options[pca]={output->"2DL"};
+
+pca[data_?MatrixQ,options:OptionsPattern[]]:=
+Module[
 {
 vars=data[[1,2;;]],
 labels=data[[2;;,1]],
 scores,annotated,scoregroups,
-eigenvals
+eigenvals,eigenvecs
 },
 
-eigenvals=Eigenvalues@Correlation[data[[2;;,2;;]]];
+{eigenvals,eigenvecs}=Eigensystem@Correlation[data[[2;;,2;;]]];
 scores=PrincipalComponents[data[[2;;,2;;]],Method->"Correlation"][[All,1;;2]];
 annotated=Merge[Identity]@MapThread[
 <|#1->Tooltip[#2,#1]|>&,
@@ -894,18 +897,10 @@ annotated=Merge[Identity]@MapThread[
 ];
 scoregroups=GatherBy[Transpose@Insert[Transpose@scores,labels,1],First][[All,All,2;;]];
 
+GraphicsRow[{
 Show[
-Graphics[
-{Opacity[0],EdgeForm[Black],Ellipsoid[Mean@#,6Covariance@#]}&/@scoregroups
-],
-ListPlot[
-annotated,PlotStyle->PointSize[0.01],
-PlotLegends->
-SwatchLegend[
-Automatic,DeleteDuplicates[labels],
-LabelStyle->16
-]
-],
+Graphics[{Opacity[0],EdgeForm[Black],Ellipsoid[Mean@#,6Covariance@#]}&/@scoregroups],
+ListPlot[annotated,PlotStyle->PointSize[0.01],PlotLegends->None],
 Frame->True,Axes->False,
 PlotRangePadding->Scaled[.05],
 LabelStyle->Directive[Black,16],
@@ -914,8 +909,30 @@ FrameLabel->{
 Style["PC1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Blue],
 Style["PC2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Red]
 },
-ImageSize->Large,AspectRatio->1
+AspectRatio->1
+],
+If[OptionValue[output]=="2DL",
+(* 2D loading plot *)
+ListPlot[
+MapThread[
+Labeled[100#1,Style[#2<>" "<>ToString@Round[100#1,1],Medium]]&,
+{Transpose[eigenvecs[[1;;2]]^2],vars}
+],
+PlotStyle->Directive[Black,PointSize[0.025]],
+(* The aspect ratio and plotrange definitions below make the plot square, while still adapting the plot range to the values being plotted *)
+AspectRatio->1,
+PlotRange->With[{max=105Max[Transpose[eigenvecs[[;;2]]^2]]},{{0,max},{0,max}}],
+PlotRangePadding->Scaled[0.05],
+AxesOrigin->{0,0},
+Frame->{True,True,False,False},FrameStyle->Directive[Black,FontSize->15],FrameLabel->{
+Style["Contrib. to F1 (%)",FontSize->16,Blue],
+Style["Contrib. to F2 (%)",FontSize->16,Red]
+}
+],
+(* no 2D loading plot: add "nothing" *)
+Nothing
 ]
+},ImageSize->Scaled[0.6]]
 ]
 
 
@@ -1040,3 +1057,6 @@ End[]
 Protect[lda,groupcontribs,outlierPCA,outlierPCAauto,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA]
 
 EndPackage[]
+
+
+
