@@ -925,8 +925,8 @@ PlotRange->With[{max=105Max[Transpose[eigenvecs[[;;2]]^2]]},{{0,max},{0,max}}],
 PlotRangePadding->Scaled[0.05],
 AxesOrigin->{0,0},
 Frame->{True,True,False,False},FrameStyle->Directive[Black,FontSize->15],FrameLabel->{
-Style["Contrib. to F1 (%)",FontSize->16,Blue],
-Style["Contrib. to F2 (%)",FontSize->16,Red]
+Style["Contrib. to PC1 (%)",FontSize->16,Blue],
+Style["Contrib. to PC2 (%)",FontSize->16,Red]
 }
 ],
 (* no 2D loading plot: add "nothing" *)
