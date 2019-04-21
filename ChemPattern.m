@@ -886,11 +886,27 @@ Module[
 vars=data[[1,2;;]],
 labels=data[[2;;,1]],
 scores,annotated,scoregroups,
-eigenvals,eigenvecs
+eigenvals,eigenvecs,
+
+(* results of singular value decomposition: *)
+(* {leftSingularValues, s, Transpose@rightSingularValues} *)
+
+(* PCA scores = leftSingularValues.s *)
+
+(* eigenVALUES of the correlation of data = diagonal elements of s^2/(number of variables-1) *)
+(* note that in most cases the normalization factor (number of variables -1) can be ignored, because the eigenvalues will be renormalized anyway *)
+
+(* the right singular values happen to be the eigenVECTORS of the correlation matrix of data *)
+(* here they are indicated as evecsT, because they are presented here column-wise (i.e. each column of evecsT is an eigenvector) *)
+(* think of it as: eigenvecsT = Transpose@Eigenvectors[Correlation@data]; ignoring sign changes, since sign is arbitrary anyway *)
+leftSingularValues,s,eigenvecsT
 },
 
-{eigenvals,eigenvecs}=Eigensystem@Correlation[data[[2;;,2;;]]];
-scores=PrincipalComponents[data[[2;;,2;;]],Method->"Correlation"][[All,1;;2]];
+{leftSingularValues,s,eigenvecsT}=SingularValueDecomposition[Standardize@data[[2;;,2;;]]];
+eigenvals=Diagonal[s]^2;
+scores=(leftSingularValues . s)[[All,;;2]];
+eigenvecs=Transpose@eigenvecsT;
+
 annotated=Merge[Identity]@MapThread[
 <|#1->Tooltip[#2,#1]|>&,
 {labels,scores}
