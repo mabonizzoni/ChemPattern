@@ -37,7 +37,7 @@ pca::usage="pca[dataset] performs PCA analysis on the data in dataset after stan
 
 removeOutliers::usage="removeOutliers[dataset][{\"Sample1\", {1, 2, 4, ..}}, {\"Sample2\", {2, 5, 4, ..}}, ..]";
 
-overview::usage="overview[dataset]\nThis function produces quick visual aids to examine the quality of information conveyed by each instrumental variable in a dataset.\nThe visualization is inspired by sparklines (i.e. no axes, no ticks).";
+overview::usage="overview[dataset]\nThis function produces quick visual aids to examine the quality of information conveyed by each instrumental measurement in a dataset.\nThe visualization is inspired by sparklines (i.e. no axes, no ticks).\nIt also produces a barchart numerically summarizing the \"amount of variability\" in each measurment for the current dataset, by calculating the ratio of the standard deviation for that measurement across the entire dataset (= INTER-sample) and the \"standard deviation of replication\" (= INTRA-sample).";
 
 projectorLDA::usage="projectorLDA[originalDataSet,(\"suffix to add to original data set labels\"),datasetToBeProjected,(\"suffix to add to projected data set labels\")]\nThis function projects points from the second data set according to the transformation ruls obtained by standard LDA on the first data set.";
 
@@ -886,27 +886,11 @@ Module[
 vars=data[[1,2;;]],
 labels=data[[2;;,1]],
 scores,annotated,scoregroups,
-eigenvals,eigenvecs,
-
-(* results of singular value decomposition: *)
-(* {leftSingularValues, s, Transpose@rightSingularValues} *)
-
-(* PCA scores = leftSingularValues.s *)
-
-(* eigenVALUES of the correlation of data = diagonal elements of s^2/(number of variables-1) *)
-(* note that in most cases the normalization factor (number of variables -1) can be ignored, because the eigenvalues will be renormalized anyway *)
-
-(* the right singular values happen to be the eigenVECTORS of the correlation matrix of data *)
-(* here they are indicated as evecsT, because they are presented here column-wise (i.e. each column of evecsT is an eigenvector) *)
-(* think of it as: eigenvecsT = Transpose@Eigenvectors[Correlation@data]; ignoring sign changes, since sign is arbitrary anyway *)
-leftSingularValues,s,eigenvecsT
+eigenvals,eigenvecs
 },
 
-{leftSingularValues,s,eigenvecsT}=SingularValueDecomposition[Standardize@data[[2;;,2;;]]];
-eigenvals=Diagonal[s]^2;
-scores=(leftSingularValues . s)[[All,;;2]];
-eigenvecs=Transpose@eigenvecsT;
-
+{eigenvals,eigenvecs}=Eigensystem@Correlation[data[[2;;,2;;]]];
+scores=PrincipalComponents[data[[2;;,2;;]],Method->"Correlation"][[All,1;;2]];
 annotated=Merge[Identity]@MapThread[
 <|#1->Tooltip[#2,#1]|>&,
 {labels,scores}
@@ -989,16 +973,68 @@ KeyValueMap[datasetAsAssociation[#1][[Range[Length[datasetAsAssociation[#1]]]~Co
 (*overview: generates sparklines for each instrumental variable in the dataset, for quick identification of useless variables*)
 
 
-(* ::Input::Initialization:: *)
-(*The following informs the syntax coloring engine that overview takes only one argument; 
-if mistakenly used with more, then the front end will color further arguments in red*)
-SyntaxInformation[overview]="ArgumentsPattern"->{_};
+(* ::Subsection:: *)
+(*Additional functionality added in March 2020*)
 
-overview[data_?MatrixQ]:=
-Module[{workingdata},
+
+(* ::Text:: *)
+(*The existing overview showed a sparkline for each instrumental measurement in the dataset. *)
+(*The added functionality generates a bar chart approximating the relative information content of each instrumental measurements.*)
+
+
+(* ::Item:: *)
+(*Using non-standardized data, a "standard deviation of replication" is determined for each instrumental variable, by calculating the standard deviation among replicates  of the same sample for that variable. We then take the maximum among those values as the most representative. Then we calculate the standard deviation of all measurements for a certain variable (total standard deviation).*)
+
+
+(* ::Item:: *)
+(*The ratio between these two indicates how much variability among samples there is in each measurement channel that is not induced by noise. For instance, if a measurement is constant through the data set (so it conveys no information) but it is naturally affected by large errors, it may show up as having "high variance", although that variance is mostly due to noise. *)
+
+
+(* ::Item:: *)
+(*All variables may be shown, but by default a threshold of 3 is used, i.e. only those variables are plotted that show intersample deviations that are larger than 3x the max intrasample deviation, with the assumptions that those with lower values are less important. *)
+
+
+(* ::Input::Initialization:: *)
+overview[data_?MatrixQ,threshold_:3]:=Module[
+{workingdata,temp,stdevREP,stdevTOT,chartdata,barchart,sparklines},
+
+(* Standard deviation of replication *)
+temp=
+Max/@
+Transpose@
+Values@
+(StandardDeviation/@
+GroupBy[First->Rest]@
+data[[2;;]]);
+
+(* Attach labels to each result *)
+stdevREP=AssociationThread[data[[1,2;;]]->temp];
+
+(* Determine the standard deviation for each measurement across all replicates *)
+stdevTOT=AssociationThread[ data[[1,2;;]]->StandardDeviation@data[[2;;,2;;]] ];
+
+(* Calculate the ratio of the variation among samples to the variation due to replication *)
+(* Select those values larger than a set threshold *)
+chartdata=Reverse@Sort@Select[stdevTOT/stdevREP,#>threshold&];
+
+barchart=BarChart[Style[chartdata,Darker[Green,0.6]],
+ChartLabels->Placed[Automatic,Bottom,Rotate[Style[#,GrayLevel[0.7],FontSize->Scaled[0.015]],90Degree]&],
+BarSpacing->Medium,
+(* The horizontal plotrange padding below gives some space at the right between the last bar and the frame, and not too much on the left between the frame and the first bar *)
+PlotRangePadding->{{-0.3,0.3},{None,Scaled[0.05]}},
+Axes->False,Frame->True,FrameStyle->Black,
+FrameLabel->{None,Style["\[Sigma](meas.) / \[Sigma](replic.)",FontSize->Scaled[0.02],Black]},
+FrameTicks->{{Automatic,None},None},FrameTicksStyle->Directive[Black,FontSize->Scaled[0.015]],
+GridLines->{None,Join[Range@Max@Ceiling@(chartdata/.Style[a_,__]:>a),{{threshold,Directive[Red,Thickness[0.01]]}}]},
+AspectRatio->0.3,ImageSize->Full,
+Epilog->Inset[Style["Relative information content\nfor each raw instrumental measurement",FontSize->Scaled[0.02],Black],Scaled[{0.99,1}],Scaled[{1,1}],Alignment->Right]
+]/.t_Tooltip:>Cases[t,_Rectangle,All];(*this last replacement rule removes all the auto-generated Tooltip crud that sometimes messes up formatting in the front end*)
+
 (*Check for the presence of sample labels, and remove them if present*)
 workingdata=If[NumberQ@data[[2,1]],data,data[[All,2;;]]];
-Multicolumn[
+
+(* Build sparklines and organize them in a multicolumn display *)
+sparklines=Multicolumn[
 Framed[
 ListPlot[
 {##2},
@@ -1012,7 +1048,13 @@ Frame->None
 ]
 ]&@@@Transpose[workingdata],
 Appearance->"Horizontal"
-]
+];
+
+(* Generate formatted output *)
+Column[{
+sparklines,
+barchart
+}]
 ]
 
 
