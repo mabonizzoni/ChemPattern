@@ -27,7 +27,8 @@ outlierPCAauto=outlierPCA;
 
 outlierPCA::usage="\n\noutlierPCA[dataset, <options>]   will analyse the dataset and try to automatically identify outliers using PCA scores;\n\t\t\t\tthis approach is conceptually similar to using a threshold on the Mahalanobis distance.\n\nmethod -> \"SinglePass\"\tthe classic one-pass method used so far (default)\n\t       \"Recursive\"\t  applies outlierPCA on its own results until the results no longer change\n\noutput ->  \"Plots\"\t\tshows outlier score plots with potential outliers highlighted in red (default)\n\t      \"Lists\"\t\treturns a structured list of retained and rejected points for each sample\n\t       \"OutlierLists\"\treturns a list of the numerical labels of the points deemed to be outliers for each sample set\n\t      \"CleanedSet\"\treturns a formatted data set from which potential outliers have been removed;\n\t\t\t\t    this can be fed directly to e.g. pca or lda functions\n\ndimensions -> dims\t       the number of PCA component scores to use in the identification of outliers;\n\t\t\t\t    the default value is 2; no more than half the number of instrumental variables is allowed";
 
-selectVarSubsets::usage="selectVarSubsets[dataset, \"criterion string\"] selects a homogeneous subset of instrumental variable for analysis.\n Examples may be selection of all absorbance variables (e.g. criterion = \"Abs\", all the variables measured at a certain wavelength (e.g. criterion = \"450\"), etc.";
+selectVarSubsets::usage="selectVarSubsets[dataset, criteria] generates a new dataset by selecting the measurements whose names match the criteria.\n  Criteria can be:\n\ta single string: selects all measurement whose names contains that string (e.g. selectVarSubsets[data, \"308\"])\n\tan Alternatives statement, using | (e.g. selectVarSubsets[data, \"308\" | \"450\"] selects measurements whose names contain EITHER 308 OR 450\n\tan Except statement (e.g. selectVarSubsets[data, Except[\"308\"]] selects all measurements EXCEPT those whose names contain 308.\n\ta list of criteria: selects those that match ALL criteria (e.g. selectVarSubsets[data, {\"3\", \"D\", Except[\"5\"]}] selects measurements whose names contain BOTH 3 and D, BUT NOT a 5)";
+selectVarSubsets::emptystring="One of the criteria contains an empty string (\"\"). Check your input.";
 
 filterVars::usage="filterVars[dataset] starts an interactive session to explore variable removal from LDA analysis of dataset. Move the threshold bar with the mouse to change the variable selection threshold.\nfilterVars[dataset, threshold] returns non-interactive results obtained by removing variables whose contribution is less than the indicated threshold.\nfilterVars[dataset, threshold, output -> \"ReducedSet\"] returns a reduced data set obtained by removing variables whose contribution is less than the indicated threshold.";
 
@@ -658,11 +659,15 @@ Join[{firstRow},flatTable]
 
 
 (* ::Input::Initialization:: *)
-selectVarSubsets[set_,criterion_]:=
-Transpose@Insert[
-Select[Transpose[set],StringContainsQ[#[[1]],criterion]&],
-set[[All,1]],1
-]
+selectVarSubsets::emptystring="One of the criteria contains an empty string (\"\"). Check your input.";
+
+selectVarSubsets[set_,""]:=(Message[selectVarSubsets::emptystring];Abort[])
+selectVarSubsets[set_,c_Except]/;First[c]==="":=(Message[selectVarSubsets::emptystring];Abort[])
+selectVarSubsets[set_,criterion_Alternatives?(MemberQ[""])]:=(Message[selectVarSubsets::emptystring];Abort[])
+
+selectVarSubsets[set_,criterion_Except]:=Transpose[Select[Transpose[set],StringFreeQ[#1[[1]],First@criterion]&]]
+selectVarSubsets[set_,criterion_]:=Transpose[Insert[Select[Transpose[set],StringContainsQ[#1[[1]],criterion]&],set[[All,1]],1]]
+selectVarSubsets[set_,criteria_List]:=Fold[selectVarSubsets,set,criteria]
 
 
 (* ::Section::Initialization:: *)
