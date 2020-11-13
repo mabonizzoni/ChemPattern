@@ -12,8 +12,8 @@
 (* ::Input::Initialization:: *)
 BeginPackage["lda`"]
 
-Unprotect[lda,groupcontribs,outlierPCA,outlierPCAauto,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA];
-ClearAll[lda,groupcontribs,outlierPCA,outlierPCAauto,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA];
+Unprotect[lda,groupcontribs,outlierPCA,outlierPCAauto,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA,pairwiseScatterPlot];
+ClearAll[lda,groupcontribs,outlierPCA,outlierPCAauto,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA,pairwiseScatterPlot];
 
 
 (* ::Input::Initialization:: *)
@@ -41,6 +41,8 @@ removeOutliers::usage="removeOutliers[dataset][{\"Sample1\", {1, 2, 4, ..}}, {\"
 overview::usage="overview[dataset]\nThis function produces quick visual aids to examine the quality of information conveyed by each instrumental measurement in a dataset.\nThe visualization is inspired by sparklines (i.e. no axes, no ticks).\nIt also produces a barchart numerically summarizing the \"amount of variability\" in each measurment for the current dataset, by calculating the ratio of the standard deviation for that measurement across the entire dataset (= INTER-sample) and the \"standard deviation of replication\" (= INTRA-sample).";
 
 projectorLDA::usage="projectorLDA[originalDataSet,(\"suffix to add to original data set labels\"),datasetToBeProjected,(\"suffix to add to projected data set labels\")]\nThis function projects points from the second data set according to the transformation ruls obtained by standard LDA on the first data set.";
+
+pairwiseScatterPlot::usage="pairwiseScatterPlot[dataset] will produce scatter plots for each pair of variables against each other, overlaid with the coefficient of correlation for the pair\nThis function is most effective after some variable reduction, since generating all scatterplots in a large dataset can be very time consuming and lead to unreadable results.";
 
 
 (* ::Section::Initialization:: *)
@@ -1110,6 +1112,46 @@ projectorLDA[projectorSet_?ArrayQ,projectedSet_?ArrayQ,projectedSuffix_String,op
 projectorLDA[projectorSet_?ArrayQ,projectedSet_?ArrayQ,options:OptionsPattern[lda]]:=projectorLDA[projectorSet,"",projectedSet,"",options]
 
 
+(* ::Section:: *)
+(*pairwiseScatterPlots : allows the projection of a second data set onto the LDA score plot generated  from the first one*)
+
+
+(* ::Input::Initialization:: *)
+pairwiseScatterPlot[dataset_?MatrixQ/;And@@NumberQ/@Flatten@dataset[[2;;,2;;]] ]:=Module[{varnames,correlation,data,plotfunction},
+
+(*look for column headers or generate generic ones*)
+(*this assumes that, if there are column headers, then there will also be row headers as well*)
+If[Not@NumberQ@dataset[[1,2]],
+varnames=dataset[[1,2;;]];data=dataset[[2;;,2;;]],
+varnames=Array["var"<>ToString[#]&,Last@Dimensions[dataset]];data=dataset
+];
+
+(*calculate the correlation matrix*)
+correlation=Correlation[data];
+
+(*the plotting function, so it looks cleaner in the grid*)
+plotfunction[i_,j_]:=
+ListPlot[
+data[[All,{i,j}]],
+PlotRange->All,AspectRatio->1,Frame->True,FrameTicks->None,Axes->False,
+Prolog->Inset[Style[NumberForm[correlation[[i,j]],{1,2}],FontColor->GrayLevel[.7],FontSize->Scaled[0.35]]],
+Background->With[{corr=Abs@correlation[[i,j]]},Which[0<corr<0.5,Opacity[0.1,Green],0.5<=corr<=0.75,Opacity[0.1,White],corr>0.75,Opacity[0.1,Red]]]
+];
+
+(*generate the formatted output*)
+Grid[
+Table[
+Which[
+i<j,Null,
+i==j,Graphics[Inset[Style[varnames[[i]],FontSize->Scaled[0.1]]],Background->GrayLevel[.85]],
+i>j,plotfunction[i,j]
+],
+{i,Length[varnames]},{j,Length[varnames]}
+]
+]
+]
+
+
 (* ::Section::Initialization:: *)
 (*Closing out the package*)
 
@@ -1117,7 +1159,7 @@ projectorLDA[projectorSet_?ArrayQ,projectedSet_?ArrayQ,options:OptionsPattern[ld
 (* ::Input::Initialization:: *)
 End[]
 
-Protect[lda,groupcontribs,outlierPCA,outlierPCAauto,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA]
+Protect[lda,groupcontribs,outlierPCA,outlierPCAauto,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA,pairwiseScatterPlot]
 
 EndPackage[]
 
