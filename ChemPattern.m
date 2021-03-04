@@ -881,7 +881,7 @@ Evaluate@iterator
 
 
 (* ::Section::Initialization:: *)
-(*pca: a quick PCA helper function*)
+(*pca: a PCA helper function*)
 
 
 (* ::Input::Initialization:: *)
@@ -892,18 +892,40 @@ Module[
 {
 vars=data[[1,2;;]],
 labels=data[[2;;,1]],
-scores,annotated,scoregroups,
+scores,scores2D,annotated,scoregroups,
+leftSingularValues,s,eigenvecsT,
 eigenvals,eigenvecs
 },
 
-{eigenvals,eigenvecs}=Eigensystem@Correlation[data[[2;;,2;;]]];
-scores=PrincipalComponents[data[[2;;,2;;]],Method->"Correlation"][[All,1;;2]];
+(* results of singular value decomposition: {leftSingularValues, s, Transpose@rightSingularValues} *)
+(* PCA scores = leftSingularValues.s *)
+
+(* eigenVALUES of the correlation of data = diagonal elements of s^2/(number of variables - 1) *)
+(* note that in most cases the normalization factor (number of variables -1) can be ignored, because the eigenvalues will be renormalized anyway *)
+
+(* the right singular values happen to be the eigenVECTORS of the correlation matrix of data *)
+(* here they are indicated as evecsT, because they are returned column-wise (i.e. each column of evecsT is an eigenvector) *)
+(* think of it as: eigenvecsT = Transpose@Eigenvectors[Correlation@data]; ignoring sign changes, since sign is arbitrary anyway *)
+
+{leftSingularValues,s,eigenvecsT}=SingularValueDecomposition[Standardize@data[[2;;,2;;]]];
+eigenvals=Diagonal[s]^2;
+scores=leftSingularValues . s;
+scores2D=scores[[All,;;2]];
+eigenvecs=Transpose@eigenvecsT;
+
 annotated=Merge[Identity]@MapThread[
 <|#1->Tooltip[#2,#1]|>&,
-{labels,scores}
+{labels,scores2D}
 ];
-scoregroups=GatherBy[Transpose@Insert[Transpose@scores,labels,1],First][[All,All,2;;]];
+scoregroups=GatherBy[Transpose@Insert[Transpose@scores2D,labels,1],First][[All,All,2;;]];
 
+(*********)
+(* OUTPUT *)
+(*********)
+
+Which[
+(* 2D plot of scores and loadings *)
+OptionValue[output]=="2DL"||OptionValue[output]=="2D",
 GraphicsRow[{
 Show[
 Graphics[{Opacity[0],EdgeForm[Black],Ellipsoid[Mean@#,6Covariance@#]}&/@scoregroups],
@@ -917,12 +939,12 @@ Style["PC1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",Font
 Style["PC2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Red]
 },
 AspectRatio->1
-],
+](*end Show*),
 If[OptionValue[output]=="2DL",
-(* 2D loading plot *)
+(* add 2D loadings plot *)
 ListPlot[
 MapThread[
-Labeled[100#1,Style[#2<>" "<>ToString@Round[100#1,1],Medium]]&,
+Labeled[100#1,Style[#2<>" "<>ToString@Round[100#1,0.1],Medium]]&,
 {Transpose[eigenvecs[[1;;2]]^2],vars}
 ],
 PlotStyle->Directive[Black,PointSize[0.025]],
@@ -935,12 +957,51 @@ Frame->{True,True,False,False},FrameStyle->Directive[Black,FontSize->15],FrameLa
 Style["Contrib. to PC1 (%)",FontSize->16,Blue],
 Style["Contrib. to PC2 (%)",FontSize->16,Red]
 }
-],
-(* no 2D loading plot: add "nothing" *)
+](*end ListPlot*),
+(* 2D loading plot not requested: add "nothing" to the GraphicsRow *)
 Nothing
-]
-},ImageSize->Scaled[0.6]]
-]
+](*end If*)
+},ImageSize->Scaled[0.6]](*end GraphicsRow*),
+
+
+(* Return the transformed data as labeled SCORES, e.g. for external plotting *)
+OptionValue[output]=="scores",
+Transpose@Prepend[
+(* Add the ROW headers from the original dataset back in *)
+Transpose@Prepend[
+(* Add the factor number COLUMN headers *)
+scores,Array["PC"<>ToString[#]&,Dimensions[scores][[2]] ]
+],
+{""}~Join~labels
+],
+
+
+(* Return a formatted table of the contributions of each variable to the first three factors *)
+OptionValue[output]=="vartable",
+Style[
+TableForm[Transpose@Round[100eigenvecs[[1;;3]]^2,0.1],TableHeadings->{vars, {"PC1","PC2","PC3"}},TableAlignments->Right],
+FontFamily->"Arial",FontSize->14
+],
+
+
+(* Return the contributions of each variable to all factors, WITHOUT formatting *)
+OptionValue[output]=="varlist",
+Return[
+Transpose@Join[{vars}, Round[100eigenvecs^2,0.1]]
+],
+
+
+(* Return eigenvector matrix *)
+OptionValue[output]=="eigenvectors",
+eigenvecs,
+
+
+(* Return the list: {normalized eigenvalues, eigenvectors} *)
+OptionValue[output]=="eigensystem",
+{Normalize[eigenvals,Total],eigenvecs}
+
+](*end Which*)
+](*end Module*)
 
 
 (* ::Section::Initialization:: *)
@@ -1066,7 +1127,7 @@ barchart
 
 
 (* ::Section:: *)
-(*projectorLDA : allows the projection of a second data set onto the LDA score plot generated  from the first one*)
+(*projectorLDA: allows the projection of a second data set onto the LDA score plot generated  from the first one*)
 
 
 (* ::Input::Initialization:: *)
@@ -1113,7 +1174,7 @@ projectorLDA[projectorSet_?ArrayQ,projectedSet_?ArrayQ,options:OptionsPattern[ld
 
 
 (* ::Section:: *)
-(*pairwiseScatterPlots : allows the projection of a second data set onto the LDA score plot generated  from the first one*)
+(*pairwiseScatterPlots:*)
 
 
 (* ::Input::Initialization:: *)
