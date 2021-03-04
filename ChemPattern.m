@@ -919,13 +919,6 @@ annotated=Merge[Identity]@MapThread[
 ];
 scoregroups=GatherBy[Transpose@Insert[Transpose@scores2D,labels,1],First][[All,All,2;;]];
 
-(*********)
-(* OUTPUT *)
-(*********)
-
-Which[
-(* 2D plot of scores and loadings *)
-OptionValue[output]=="2DL"||OptionValue[output]=="2D",
 GraphicsRow[{
 Show[
 Graphics[{Opacity[0],EdgeForm[Black],Ellipsoid[Mean@#,6Covariance@#]}&/@scoregroups],
@@ -939,12 +932,12 @@ Style["PC1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",Font
 Style["PC2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Red]
 },
 AspectRatio->1
-](*end Show*),
+],
 If[OptionValue[output]=="2DL",
-(* add 2D loadings plot *)
+(* 2D loading plot *)
 ListPlot[
 MapThread[
-Labeled[100#1,Style[#2<>" "<>ToString@Round[100#1,0.1],Medium]]&,
+Labeled[100#1,Style[#2<>" "<>ToString@Round[100#1,1],Medium]]&,
 {Transpose[eigenvecs[[1;;2]]^2],vars}
 ],
 PlotStyle->Directive[Black,PointSize[0.025]],
@@ -957,51 +950,12 @@ Frame->{True,True,False,False},FrameStyle->Directive[Black,FontSize->15],FrameLa
 Style["Contrib. to PC1 (%)",FontSize->16,Blue],
 Style["Contrib. to PC2 (%)",FontSize->16,Red]
 }
-](*end ListPlot*),
-(* 2D loading plot not requested: add "nothing" to the GraphicsRow *)
+],
+(* no 2D loading plot: add "nothing" *)
 Nothing
-](*end If*)
-},ImageSize->Scaled[0.6]](*end GraphicsRow*),
-
-
-(* Return the transformed data as labeled SCORES, e.g. for external plotting *)
-OptionValue[output]=="scores",
-Transpose@Prepend[
-(* Add the ROW headers from the original dataset back in *)
-Transpose@Prepend[
-(* Add the factor number COLUMN headers *)
-scores,Array["PC"<>ToString[#]&,Dimensions[scores][[2]] ]
-],
-{""}~Join~labels
-],
-
-
-(* Return a formatted table of the contributions of each variable to the first three factors *)
-OptionValue[output]=="vartable",
-Style[
-TableForm[Transpose@Round[100eigenvecs[[1;;3]]^2,0.1],TableHeadings->{vars, {"PC1","PC2","PC3"}},TableAlignments->Right],
-FontFamily->"Arial",FontSize->14
-],
-
-
-(* Return the contributions of each variable to all factors, WITHOUT formatting *)
-OptionValue[output]=="varlist",
-Return[
-Transpose@Join[{vars}, Round[100eigenvecs^2,0.1]]
-],
-
-
-(* Return eigenvector matrix *)
-OptionValue[output]=="eigenvectors",
-eigenvecs,
-
-
-(* Return the list: {normalized eigenvalues, eigenvectors} *)
-OptionValue[output]=="eigensystem",
-{Normalize[eigenvals,Total],eigenvecs}
-
-](*end Which*)
-](*end Module*)
+]
+},ImageSize->Scaled[0.6]]
+]
 
 
 (* ::Section::Initialization:: *)
