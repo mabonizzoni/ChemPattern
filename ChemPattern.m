@@ -12,18 +12,14 @@
 (* ::Input::Initialization:: *)
 BeginPackage["lda`"]
 
-Unprotect[lda,groupcontribs,outlierPCA,outlierPCAauto,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA,pairwiseScatterPlot];
-ClearAll[lda,groupcontribs,outlierPCA,outlierPCAauto,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA,pairwiseScatterPlot];
+Unprotect[lda,groupcontribs,outlierPCA,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA,pairwiseScatterPlot];
+ClearAll[lda,groupcontribs,outlierPCA,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA,pairwiseScatterPlot];
 
 
 (* ::Input::Initialization:: *)
 lda::usage="lda[dataset] carries out Linear Discriminant Analysis on dataset and returns the transformed data as factor scores (default), or other numerical / graphical results. Each row of dataset should contain a sample; the first column contains the class identifier for that sample.\nOptions:\napplyfunc (Identity, Standardize (default), Rescale, ...)\noutput (\"scores\", \"vartable\", \"varlist\", \"eigenvectors\", \"eigensystem\", \"2D\" (= 2D score plot), \"2DL\" (= 2D score and loading plots, default), \"3D\", \"3DL\")\nswapaxes (default = {False,False})\nellipsoidcolor (Automatic, True).";
 
 groupcontribs::usage="groupcontribs[eigensystem,numberofgroups,sensornames]\ngroupcontribs[eigensystem,numberofgroups]\nThe function generates a bar chart of the contributions of each group of variables to the overall discrimination. Before summing, the contributions to each factor are weighted by the corresponding eigenvalue of the factor. This is needed so that a group that contributes a lot to an unimportant factor is still reported as unimportant in the overall discrimination.";
-
-(* This is just to retain compatibility with any old code that used the at-the-time experimental outlierPCAauto function *)
-(* That function has since become the standard one, and has taken over the outlierPCA name *)
-outlierPCAauto=outlierPCA;
 
 outlierPCA::usage="\n\noutlierPCA[dataset, <options>]   will analyse the dataset and try to automatically identify outliers using PCA scores;\n\t\t\t\tthis approach is conceptually similar to using a threshold on the Mahalanobis distance.\n\nmethod -> \"SinglePass\"\tthe classic one-pass method used so far (default)\n\t       \"Recursive\"\t  applies outlierPCA on its own results until the results no longer change\n\noutput ->  \"Plots\"\t\tshows outlier score plots with potential outliers highlighted in red (default)\n\t      \"Lists\"\t\treturns a structured list of retained and rejected points for each sample\n\t       \"OutlierLists\"\treturns a list of the numerical labels of the points deemed to be outliers for each sample set\n\t      \"CleanedSet\"\treturns a formatted data set from which potential outliers have been removed;\n\t\t\t\t    this can be fed directly to e.g. pca or lda functions\n\ndimensions -> dims\t       the number of PCA component scores to use in the identification of outliers;\n\t\t\t\t    the default value is 2; no more than half the number of instrumental variables is allowed";
 
@@ -650,7 +646,7 @@ goodReplicates=Query[KeyDrop["varnames"],"in",Values]@results;
 (* Tuples was key here in "distributing" the sample labels to each replicate *)
 flatTable=Flatten[#,1]&@KeyValueMap[Flatten/@Tuples[{{#1},#2}]&]@goodReplicates;
 
-firstRow=Join[{"varnames"},results["varnames"]];
+firstRow=Join[{""},results["varnames"]];
 
 Join[{firstRow},flatTable]
 ]
@@ -1042,7 +1038,15 @@ KeyValueMap[datasetAsAssociation[#1][[Range[Length[datasetAsAssociation[#1]]]~Co
 
 
 (* ::Subsection:: *)
-(*Additional functionality added in March 2020*)
+(*Added a preliminary sorting of the dataset (September 2021)*)
+
+
+(* ::Text:: *)
+(*If replicates for the same sample are not contiguous in the raw data table, overview reported jumbled results. If row labels are present, the function first sorts the dataset by each row's first entry (i.e. the label) before constructing the plots.*)
+
+
+(* ::Subsection:: *)
+(*Barchart functionality (added in March 2020, removed in September 2021)*)
 
 
 (* ::Text:: *)
@@ -1064,8 +1068,9 @@ KeyValueMap[datasetAsAssociation[#1][[Range[Length[datasetAsAssociation[#1]]]~Co
 
 (* ::Input::Initialization:: *)
 overview[data_?MatrixQ,threshold_:3]:=Module[
-{workingdata,temp,stdevREP,stdevTOT,chartdata,barchart,sparklines},
+{workingdata,(*temp,stdevREP,stdevTOT,chartdata,barchart,*)sparklines},
 
+(*
 (* Standard deviation of replication *)
 temp=
 Max/@
@@ -1073,33 +1078,42 @@ Transpose@
 Values@
 (StandardDeviation/@
 GroupBy[First->Rest]@
-data[[2;;]]);
+data\[LeftDoubleBracket]2;;\[RightDoubleBracket]);
 
 (* Attach labels to each result *)
-stdevREP=AssociationThread[data[[1,2;;]]->temp];
+stdevREP=AssociationThread[data\[LeftDoubleBracket]1,2;;\[RightDoubleBracket]\[Rule]temp];
 
 (* Determine the standard deviation for each measurement across all replicates *)
-stdevTOT=AssociationThread[ data[[1,2;;]]->StandardDeviation@data[[2;;,2;;]] ];
+stdevTOT=AssociationThread[ data\[LeftDoubleBracket]1,2;;\[RightDoubleBracket]\[Rule]StandardDeviation@data\[LeftDoubleBracket]2;;,2;;\[RightDoubleBracket] ];
 
 (* Calculate the ratio of the variation among samples to the variation due to replication *)
 (* Select those values larger than a set threshold *)
 chartdata=Reverse@Sort@Select[stdevTOT/stdevREP,#>threshold&];
 
 barchart=BarChart[Style[chartdata,Darker[Green,0.6]],
-ChartLabels->Placed[Automatic,Bottom,Rotate[Style[#,GrayLevel[0.7],FontSize->Scaled[0.015]],90Degree]&],
-BarSpacing->Medium,
+ChartLabels\[Rule]Placed[Automatic,Bottom,Rotate[Style[#,GrayLevel[0.7],FontSize\[Rule]Scaled[0.015]],90Degree]&],
+BarSpacing\[Rule]Medium,
 (* The horizontal plotrange padding below gives some space at the right between the last bar and the frame, and not too much on the left between the frame and the first bar *)
-PlotRangePadding->{{-0.3,0.3},{None,Scaled[0.05]}},
-Axes->False,Frame->True,FrameStyle->Black,
-FrameLabel->{None,Style["\[Sigma](meas.) / \[Sigma](replic.)",FontSize->Scaled[0.02],Black]},
-FrameTicks->{{Automatic,None},None},FrameTicksStyle->Directive[Black,FontSize->Scaled[0.015]],
-GridLines->{None,Join[Range@Max@Ceiling@(chartdata/.Style[a_,__]:>a),{{threshold,Directive[Red,Thickness[0.01]]}}]},
-AspectRatio->0.3,ImageSize->Full,
-Epilog->Inset[Style["Relative information content\nfor each raw instrumental measurement",FontSize->Scaled[0.02],Black],Scaled[{0.99,1}],Scaled[{1,1}],Alignment->Right]
-]/.t_Tooltip:>Cases[t,_Rectangle,All];(*this last replacement rule removes all the auto-generated Tooltip crud that sometimes messes up formatting in the front end*)
+PlotRangePadding\[Rule]{{-0.3,0.3},{None,Scaled[0.05]}},
+Axes\[Rule]False,Frame\[Rule]True,FrameStyle\[Rule]Black,
+FrameLabel\[Rule]{None,Style["\[Sigma](meas.) / \[Sigma](replic.)",FontSize\[Rule]Scaled[0.02],Black]},
+FrameTicks\[Rule]{{Automatic,None},None},FrameTicksStyle\[Rule]Directive[Black,FontSize\[Rule]Scaled[0.015]],
+GridLines\[Rule]{None,Join[Range@Max@Ceiling@(chartdata/.Style[a_,__]\[RuleDelayed]a),{{threshold,Directive[Red,Thickness[0.01]]}}]},
+AspectRatio\[Rule]0.3,ImageSize\[Rule]Full,
+Epilog\[Rule]Inset[Style["Relative information content\nfor each raw instrumental measurement",FontSize\[Rule]Scaled[0.02],Black],Scaled[{0.99,1}],Scaled[{1,1}],Alignment\[Rule]Right]
+]/.t_Tooltip\[RuleDelayed]Cases[t,_Rectangle,All];(*this last replacement rule removes all the auto-generated Tooltip crud that sometimes messes up formatting in the front end*)
+*)
 
 (*Check for the presence of sample labels, and remove them if present*)
-workingdata=If[NumberQ@data[[2,1]],data,data[[All,2;;]]];
+(*Also stable-sort the dataset so replicates for the same sample are guaranteed to be contiguous*)
+(*note! this works on the assumption that data[[1,1]] is an EMPTY STRING: otherwise the measurement names get alphabetized out of order*)
+workingdata=If[StringQ@data[[2,1]],
+(*the first column contains sample labels; use them to sort the dataset (except the first row, which are measurement labels and should not be touched)*)
+(*1. remove first row and sort; 2. reattach first row; 2. remove sample labels*)
+({data[[1]]}~Join~SortBy[data[[2;;]],{First}])[[All,2;;]],
+(*there are no sample labels: nothing needs to be done*)
+data
+];
 
 (* Build sparklines and organize them in a multicolumn display *)
 sparklines=Multicolumn[
@@ -1116,13 +1130,15 @@ Frame->None
 ]
 ]&@@@Transpose[workingdata],
 Appearance->"Horizontal"
-];
+]
 
+(*
 (* Generate formatted output *)
 Column[{
 sparklines,
 barchart
 }]
+*)
 ]
 
 
@@ -1220,7 +1236,7 @@ i>j,plotfunction[i,j]
 (* ::Input::Initialization:: *)
 End[]
 
-Protect[lda,groupcontribs,outlierPCA,outlierPCAauto,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA,pairwiseScatterPlot]
+Protect[lda,groupcontribs,outlierPCA,selectVarSubsets,filterVars,retainedInfo,pca,removeOutliers,overview,projectorLDA,pairwiseScatterPlot]
 
 EndPackage[]
 
