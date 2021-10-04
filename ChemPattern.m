@@ -924,8 +924,8 @@ Which[
 OptionValue[output]=="2DL"||OptionValue[output]=="2D",
 GraphicsRow[{
 Show[
-Graphics[{Opacity[0],EdgeForm[Black],Ellipsoid[Mean@#,6Covariance@#]}&/@scoregroups],
 ListPlot[annotated,PlotStyle->PointSize[0.01],PlotLegends->None],
+Graphics[{Opacity[0],EdgeForm[Black],Ellipsoid[Mean@#,6Covariance@#]}&/@scoregroups],
 Frame->True,Axes->False,
 PlotRangePadding->Scaled[.05],
 LabelStyle->Directive[Black,16],
@@ -957,7 +957,7 @@ Style["Contrib. to PC2 (%)",FontSize->16,Red]
 (* 2D loading plot not requested: add "nothing" to the GraphicsRow *)
 Nothing
 ](*end If*)
-},ImageSize->Scaled[0.6]](*end GraphicsRow*),
+},ImageSize->Scaled[1/3]](*end GraphicsRow*),
 
 
 (* Return the transformed data as labeled SCORES, e.g. for external plotting *)
