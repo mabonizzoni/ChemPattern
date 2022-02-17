@@ -641,7 +641,7 @@ ClearAll[iRemakeDataset]
 iRemakeDataset[results_Association]:=Module[
 {goodReplicates,flatTable,firstRow},
 
-goodReplicates=Query[KeyDrop["varnames"],"in",Values]@results;
+goodReplicates=Query[All,"in",Values]@KeyDrop["varnames"]@results;
 
 (* Tuples was key here in "distributing" the sample labels to each replicate *)
 flatTable=Flatten[#,1]&@KeyValueMap[Flatten/@Tuples[{{#1},#2}]&]@goodReplicates;
