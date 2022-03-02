@@ -17,29 +17,67 @@ ClearAll[filterVars,groupcontribs,heatmap,lda,pairwiseScatterPlot,pca,projectorL
 
 
 (* ::Input::Initialization:: *)
-filterVars::usage="filterVars[dataset] starts an interactive session to explore variable removal from LDA analysis of dataset. Move the threshold bar with the mouse to change the variable selection threshold.\nfilterVars[dataset, threshold] returns non-interactive results obtained by removing variables whose contribution is less than the indicated threshold.\nfilterVars[dataset, threshold, output -> \"ReducedSet\"] returns a reduced data set obtained by removing variables whose contribution is less than the indicated threshold.";
+filterVars::usage="filterVars[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] starts an interactive session to explore variable removal from LDA analysis of \!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\). Move the threshold bar with the mouse to change the variable selection threshold.\n\nfilterVars[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\), \!\(\*
+StyleBox[\"threshold\",\nFontSlant->\"Italic\"]\)] returns non-interactive results obtained by removing variables whose contribution is less than the indicated \!\(\*
+StyleBox[\"threshold\",\nFontSlant->\"Italic\"]\).\n\nfilterVars[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\), \!\(\*
+StyleBox[\"threshold\",\nFontSlant->\"Italic\"]\), output -> \"ReducedSet\"] returns a reduced data set obtained by removing variables whose contribution is less than the indicated \!\(\*
+StyleBox[\"threshold\",\nFontSlant->\"Italic\"]\).";
 
-groupcontribs::usage="groupcontribs[eigensystem,numberofgroups,sensornames]\ngroupcontribs[eigensystem,numberofgroups]\nThe function generates a bar chart of the contributions of each group of variables to the overall discrimination. Before summing, the contributions to each factor are weighted by the corresponding eigenvalue of the factor. This is needed so that a group that contributes a lot to an unimportant factor is still reported as unimportant in the overall discrimination.";
+groupcontribs::usage="groupcontribs[\!\(\*
+StyleBox[\"eigensystem\",\nFontSlant->\"Italic\"]\), \!\(\*
+StyleBox[\"numberofgroups\",\nFontSlant->\"Italic\"]\), \!\(\*
+StyleBox[\"sensornames\",\nFontSlant->\"Italic\"]\)]\ngroupcontribs[\!\(\*
+StyleBox[\"eigensystem\",\nFontSlant->\"Italic\"]\), \!\(\*
+StyleBox[\"numberofgroups\",\nFontSlant->\"Italic\"]\)]\nThe function generates a bar chart of the contributions of each group of variables to the overall discrimination. Before summing, the contributions to each factor are weighted by the corresponding eigenvalue of the factor. This is needed so that a group that contributes a lot to an unimportant factor is still reported as unimportant in the overall discrimination.";
 
-heatmap::usage="heatmap[dataset]\twill produce a heat map plot of the entire dataset to quickly spot unevenness, data quality,\n\t\t\t\t\tobvious outlier points, and information distribution within each instrumental measurement.\n\t\t\t\t\tIn the plot, the data is presented by rows (samples) and columns (measurements).\n\t\t\t\t\tThe data for each measurement type is standardized before plotting so the magnitudes of variation are comparable.\n\nSpecific options:\n\"sortedSet\" -> True\tIf this is set to False, then both the columns and the rows of the dataset are sorted alphabetically before plotting.\n\t\t\t\t\tThe default value (True) does no sorting).\n\nThe function uses ArrayPlot to generate the graphics so it also takes general plotting function / Graphics options such as ColorFunction and ColorFunctionScaling, AspectRatio, Mesh, MeshStyle."
+heatmap::usage="heatmap[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] will produce a heat map plot of the entire dataset to quickly spot unevenness, data quality, obvious outlier points, and information distribution within each instrumental measurement. In the plot the data is presented by rows (samples) and columns (measurements). The data for each measurement type is standardized before plotting so the magnitudes of variation are comparable.\n\nFunction-specific options:\n\"sortedSet\" -> True  If this is set to False, then both the columns and the rows of the dataset are sorted alphabetically before plotting. The default value (True) does no sorting.\n\nThe function uses ArrayPlot to generate the graphics so it also takes general plotting function / Graphics options such as ColorFunction and ColorFunctionScaling, AspectRatio, Mesh, MeshStyle.";
 
-lda::usage="lda[dataset] carries out Linear Discriminant Analysis on dataset and returns the transformed data as factor scores (default), or other numerical / graphical results. Each row of dataset should contain a sample; the first column contains the class identifier for that sample.\nOptions:\napplyfunc (Identity, Standardize (default), Rescale, ...)\noutput (\"scores\", \"vartable\", \"varlist\", \"eigenvectors\", \"eigensystem\", \"2D\" (= 2D score plot), \"2DL\" (= 2D score and loading plots, default), \"3D\", \"3DL\")\nswapaxes (default = {False,False})\nellipsoidcolor (Automatic, True).";
+lda::usage="lda[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] carries out Linear Discriminant Analysis on dataset and returns the transformed data as factor scores (default), or other numerical / graphical results. Each row of dataset should contain a sample; the first column contains the class identifier for that sample.\nOptions:\napplyfunc (Identity, Standardize (default), Rescale, ...)\noutput (\"scores\", \"vartable\", \"varlist\", \"eigenvectors\", \"eigensystem\", \"2D\" (= 2D score plot), \"2DL\" (= 2D score and loading plots, default), \"3D\", \"3DL\")\nswapaxes (default = {False,False})\nellipsoidcolor (Automatic, True).";
 
-pairwiseScatterPlot::usage="pairwiseScatterPlot[dataset] will produce scatter plots for each pair of variables against each other, overlaid with the coefficient of correlation for the pair\nThis function is most effective after some variable reduction, since generating all scatterplots in a large dataset can be very time consuming and lead to unreadable results.";
+pairwiseScatterPlot::usage="pairwiseScatterPlot[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] will produce scatter plots for each pair of variables against each other, overlaid with the coefficient of correlation for the pair\nThis function is most effective after some variable reduction, since generating all scatterplots in a large dataset can be very time consuming and lead to unreadable results.";
 
-pca::usage="pca[dataset] performs PCA analysis on the data in dataset after standardization";
+pca::usage="pca[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] performs PCA analysis on the data in dataset after standardization. It takes most of the same options as the lda function";
 
-projectorLDA::usage="projectorLDA[originalDataSet,(\"suffix to add to original data set labels\"),datasetToBeProjected,(\"suffix to add to projected data set labels\")]\nThis function projects points from the second data set according to the transformation ruls obtained by standard LDA on the first data set.";
+projectorLDA::usage="projectorLDA[\!\(\*
+StyleBox[\"originalDataSet\",\nFontSlant->\"Italic\"]\),(\"suffix to add to original data set labels\"),\!\(\*
+StyleBox[\"datasetToBeProjected\",\nFontSlant->\"Italic\"]\),(\"suffix to add to projected data set labels\")]\nThis function projects points from the second data set according to the transformation ruls obtained by standard LDA on the first data set.";
 
-outlierPCA::usage="\n\noutlierPCA[dataset, <options>]   will analyse the dataset and try to automatically identify outliers using PCA scores;\n\t\t\t\tthis approach is conceptually similar to using a threshold on the Mahalanobis distance.\n\nmethod -> \"SinglePass\"\tthe classic one-pass method used so far (default)\n\t       \"Recursive\"\t  applies outlierPCA on its own results until the results no longer change\n\noutput ->  \"Plots\"\t\tshows outlier score plots with potential outliers highlighted in red (default)\n\t      \"Lists\"\t\treturns a structured list of retained and rejected points for each sample\n\t       \"OutlierLists\"\treturns a list of the numerical labels of the points deemed to be outliers for each sample set\n\t      \"CleanedSet\"\treturns a formatted data set from which potential outliers have been removed;\n\t\t\t\t    this can be fed directly to e.g. pca or lda functions\n\ndimensions -> dims\t       the number of PCA component scores to use in the identification of outliers;\n\t\t\t\t    the default value is 2; no more than half the number of instrumental variables is allowed";
+outlierPCA::usage="outlierPCA[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\), <\!\(\*
+StyleBox[\"options\",\nFontSlant->\"Italic\"]\)>] will try to automatically identify outliers using PCA scores, similar to using a threshold on the Mahalanobis distance.\n\n\!\(\*
+StyleBox[\"Options\",\nFontWeight->\"Bold\"]\):\nmethod -> \"SinglePass\"   the classic one-pass method used so far (default)\nmethod -> \"Recursive\"    applies outlierPCA on its own results until the results no longer change\n\noutput ->\"Plots\"\tshows outlier score plots with potential outliers highlighted in red (default)\noutput ->\"Lists\"\treturns a structured list of retained and rejected points for each sample\noutput ->\"OutlierLists\"  returns a list of the numerical labels of the points deemed to be outliers for each sample set\noutput ->\"CleanedSet\"  returns a formatted data set from which potential outliers have been removed; this can be fed directly to e.g. pca or lda functions\n\ndimensions -> \!\(\*
+StyleBox[\"dims\",\nFontSlant->\"Italic\"]\)  how many PCA components to use in the identification of outliers. The default is 2; no more than half the number of instrumental variables is allowed";
 
-overview::usage="overview[dataset]\nThis function produces quick visual aids to examine the quality of information conveyed by each instrumental measurement in a dataset.\nThe visualization is inspired by sparklines (i.e. no axes, no ticks).\nIt also produces a barchart numerically summarizing the \"amount of variability\" in each measurment for the current dataset, by calculating the ratio of the standard deviation for that measurement across the entire dataset (= INTER-sample) and the \"standard deviation of replication\" (= INTRA-sample).";
+overview::usage="overview[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] examine the quality of each instrumental measurement in \!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\) through a set of sparklines, one per measurement";
 
-removeOutliers::usage="removeOutliers[dataset][{\"Sample1\", {1, 2, 4, ..}}, {\"Sample2\", {2, 5, 4, ..}}, ..]";
+removeOutliers::usage="removeOutliers[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)][{\"Sample1\", {1, 2, 4, ..}}, {\"Sample2\", {2, 5, 4, ..}}, ..]";
 
-retainedInfo::usage="retainedInfo[dataset] calculates the % information retained as a function of filtering threshold\n\toutput -> \"Plot\"\treturns the data as a plot (default)\n\toutput -> \"List\"\t returns the results as a list of {threshold, % information retained}";
+retainedInfo::usage="retainedInfo[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] calculates the % information retained as a function of filtering threshold\n\toutput -> \"Plot\"\treturns the data as a plot (default)\n\toutput -> \"List\"\t returns the results as a list of {\!\(\*
+StyleBox[\"threshold\",\nFontSlant->\"Italic\"]\), % \!\(\*
+StyleBox[\"information\",\nFontSlant->\"Italic\"]\)\!\(\*
+StyleBox[\" \",\nFontSlant->\"Italic\"]\)\!\(\*
+StyleBox[\"retained\",\nFontSlant->\"Italic\"]\)}";
 
-selectVarSubsets::usage="selectVarSubsets[dataset, criteria] generates a new dataset by selecting the measurements whose names match the criteria.\n  Criteria can be:\n\ta single string: selects all measurement whose names contains that string (e.g. selectVarSubsets[data, \"308\"])\n\tan Alternatives statement, using | (e.g. selectVarSubsets[data, \"308\" | \"450\"] selects measurements whose names contain EITHER 308 OR 450\n\tan Except statement (e.g. selectVarSubsets[data, Except[\"308\"]] selects all measurements EXCEPT those whose names contain 308.\n\ta list of criteria: selects those that match ALL criteria (e.g. selectVarSubsets[data, {\"3\", \"D\", Except[\"5\"]}] selects measurements whose names contain BOTH 3 and D, BUT NOT a 5)";
+selectVarSubsets::usage="selectVarSubsets[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\), \!\(\*
+StyleBox[\"criteria\",\nFontSlant->\"Italic\"]\)] generates a new dataset by selecting the measurements whose names match \!\(\*
+StyleBox[\"criteria\",\nFontSlant->\"Italic\"]\).\n\nCriteria can be:\n\ta single string: selects all measurement whose names contains that string (e.g. selectVarSubsets[\!\(\*
+StyleBox[\"data\",\nFontSlant->\"Italic\"]\), \"308\"])\n\tan Alternatives statement, using | (e.g. selectVarSubsets[\!\(\*
+StyleBox[\"data\",\nFontSlant->\"Italic\"]\), \"308\" | \"450\"] selects measurements whose names contain EITHER 308 OR 450\n\tan Except statement (e.g. selectVarSubsets[\!\(\*
+StyleBox[\"data\",\nFontSlant->\"Italic\"]\), Except[\"308\"]] selects all measurements EXCEPT those whose names contain 308.\n\ta list of criteria: selects those that match ALL criteria (e.g. selectVarSubsets[\!\(\*
+StyleBox[\"data\",\nFontSlant->\"Italic\"]\), {\"3\", \"D\", Except[\"5\"]}] selects measurements whose names contain BOTH 3 and D, BUT NOT 5)";
 selectVarSubsets::emptystring="One of the criteria contains an empty string (\"\"). Check your input.";
 
 
