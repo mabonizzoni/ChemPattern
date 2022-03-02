@@ -232,7 +232,7 @@ colorlist[[1;;First@Dimensions@partitionedscores]]
 readyforplot=MapThread[Tooltip,{partitionedscores,classlist}];
 
 Return[
-If[OptionValue[output]=="2DL",GraphicsRow[#,ImageSize->Scaled[0.6]]&,Show[#[[1]],ImageSize->Scaled[0.3]]&]@
+If[OptionValue[output]=="2DL",GraphicsRow[#,ImageSize->Scaled[2/3]]&,Show[#[[1]],ImageSize->Scaled[1/3]]&]@
 List[
 (* 2D score plot *)
 ListPlot[readyforplot,
@@ -261,7 +261,7 @@ Style["Contrib. to F2 (%)",FontSize->16,Red]
 }
 ],
 (* no 2D loading plot: add "nothing" *)
-Unevaluated@Sequence[]
+Nothing
 ]
 ]
 ],
@@ -924,10 +924,16 @@ scoregroups=GatherBy[Transpose@Insert[Transpose@scores2D,labels,1],First][[All,A
 Which[
 (* 2D plot of scores and loadings *)
 OptionValue[output]=="2DL"||OptionValue[output]=="2D",
-GraphicsRow[{
-Show[
-ListPlot[annotated,PlotStyle->PointSize[0.01],PlotLegends->None],
-Graphics[{Opacity[0],EdgeForm[Black],Ellipsoid[Mean@#,6Covariance@#]}&/@scoregroups],
+If[
+OptionValue[output]==="2DL",
+GraphicsRow[#,ImageSize->Scaled[2/3]]&,(*scores and loadings plots to be presented in a row*)
+Show[#,ImageSize->Scaled[1/3]]&(*only the scores plot was requested, so just show it at proper size*)
+]@{
+(* PCA scores plot *)
+ListPlot[
+annotated,
+PlotStyle->PointSize[0.015],
+PlotLegends->None,
 Frame->True,Axes->False,
 PlotRangePadding->Scaled[.05],
 LabelStyle->Directive[Black,16],
@@ -936,8 +942,10 @@ FrameLabel->{
 Style["PC1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Blue],
 Style["PC2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Red]
 },
-AspectRatio->1
-](*end Show*),
+AspectRatio->1,
+Epilog->{{Opacity[0],EdgeForm[Black],Ellipsoid[Mean@#,6Covariance@#]}&/@scoregroups}
+](*end ListPlot for 2D PCA scores plot*),
+
 If[OptionValue[output]=="2DL",
 (* add 2D loadings plot *)
 ListPlot[
@@ -951,15 +959,17 @@ AspectRatio->1,
 PlotRange->With[{max=105Max[Transpose[eigenvecs[[;;2]]^2]]},{{0,max},{0,max}}],
 PlotRangePadding->Scaled[0.05],
 AxesOrigin->{0,0},
-Frame->{True,True,False,False},FrameStyle->Directive[Black,FontSize->15],FrameLabel->{
+Frame->{True,True,False,False},FrameStyle->Directive[Black,FontSize->15],
+FrameLabel->{
 Style["Contrib. to PC1 (%)",FontSize->16,Blue],
 Style["Contrib. to PC2 (%)",FontSize->16,Red]
 }
-](*end ListPlot*),
+](*end ListPlot for loadings plot *),
 (* 2D loading plot not requested: add "nothing" to the GraphicsRow *)
 Nothing
 ](*end If*)
-},ImageSize->Scaled[1/3]](*end GraphicsRow*),
+}
+,
 
 
 (* Return the transformed data as labeled SCORES, e.g. for external plotting *)
