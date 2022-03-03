@@ -57,8 +57,10 @@ StyleBox[\"Options\",\nFontWeight->\"Bold\"]\):\nmethod -> \"SinglePass\"   the 
 StyleBox[\"dims\",\nFontSlant->\"Italic\"]\)  how many PCA components to use in the identification of outliers. The default is 2; no more than half the number of instrumental variables is allowed";
 
 overview::usage="overview[\!\(\*
-StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] examine the quality of each instrumental measurement in \!\(\*
-StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\) through a set of sparklines, one per measurement";
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] examines the quality of each instrumental measurement in \!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\) through a set of sparklines, one per measurement\n\noverview[\!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\), output -> \"Table\"] returns summary statistics on the measurements in \!\(\*
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\) in tabular form\n";
 
 removeOutliers::usage="removeOutliers[\!\(\*
 StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)][{\"Sample1\", {1, 2, 4, ..}}, {\"Sample2\", {2, 5, 4, ..}}, ..]";
@@ -1088,6 +1090,15 @@ KeyValueMap[datasetAsAssociation[#1][[Range[Length[datasetAsAssociation[#1]]]~Co
 
 
 (* ::Subsection:: *)
+(*Added an alternative tabular output (March 2022)*)
+
+
+(* ::Text:: *)
+(*Reports on aggregate or group-wise statistics of each raw measurement to identify potentially bad values (overflow, too low, too high, too noisy) from the values themselves, which are otherwise not reported in the sparklines.*)
+(*Changed the implementation approach to having two internal implementation functions selected by an "output" option. The function defaults to generation of sparklines when no option is given for backwards compatibility.*)
+
+
+(* ::Subsection:: *)
 (*Added a preliminary sorting of the dataset (September 2021)*)
 
 
@@ -1096,7 +1107,7 @@ KeyValueMap[datasetAsAssociation[#1][[Range[Length[datasetAsAssociation[#1]]]~Co
 
 
 (* ::Subsection:: *)
-(*Barchart functionality (added in March 2020, removed in September 2021)*)
+(*Barchart functionality (added in March 2020, commented out and removed in September 2021; code removed in March 2022)*)
 
 
 (* ::Text:: *)
@@ -1117,42 +1128,78 @@ KeyValueMap[datasetAsAssociation[#1][[Range[Length[datasetAsAssociation[#1]]]~Co
 
 
 (* ::Input::Initialization:: *)
-overview[data_?MatrixQ,threshold_:3]:=Module[
-{workingdata,(*temp,stdevREP,stdevTOT,chartdata,barchart,*)sparklines},
+Options[overview]={output->"Sparklines"};
 
-(*
-(* Standard deviation of replication *)
-temp=
-Max/@
+overview::wrongoption="The option `1` is not recognized. Valid output options are \"Sparklines\" (the default) and \"Table\".";
+
+overview[data_?MatrixQ,OptionsPattern[]]:=
+Switch[
+OptionValue[output],
+"Table",iOverviewTable[data],
+"Sparklines",iOverviewSparklines[data],
+_,Message[overview::wrongoption,OptionValue[output]]
+]
+
+ClearAll[iOverviewTable]
+iOverviewTable[data_]:=Module[
+{measurementNames,aggregateDescriptors,groupedDataDescriptors,combinedDescriptors,formattedDescriptors},
+
+(* Take names of measurements from first row; remove the blank space in position 1,1 *)
+measurementNames=data[[1,2;;]];
+
+(* simple descriptive statistics on the entire dataset, measurement-wise *)
+aggregateDescriptors={
+Min[#],
+Max[#],
+Median[#],
+Mean[#],
+StandardDeviation[#]
+}&/@Transpose[data][[2;;,2;;]];
+
+(* medians by analyte *)
+groupedDataDescriptors=
+{##,#2-#1}&@@@
+MinMax/@
 Transpose@
-Values@
-(StandardDeviation/@
-GroupBy[First->Rest]@
-data\[LeftDoubleBracket]2;;\[RightDoubleBracket]);
+Values[
+Map[Median,#,{2}]&@
+GroupBy[data[[2;;]],First->Rest,Transpose]
+];
 
-(* Attach labels to each result *)
-stdevREP=AssociationThread[data\[LeftDoubleBracket]1,2;;\[RightDoubleBracket]\[Rule]temp];
+(* combine simple and grouped descriptors for each measurement in one row *)
+combinedDescriptors=Flatten/@Transpose[{aggregateDescriptors,groupedDataDescriptors}];
 
-(* Determine the standard deviation for each measurement across all replicates *)
-stdevTOT=AssociationThread[ data\[LeftDoubleBracket]1,2;;\[RightDoubleBracket]\[Rule]StandardDeviation@data\[LeftDoubleBracket]2;;,2;;\[RightDoubleBracket] ];
+(*format descriptors to align them on decimal point when in tabular form *)
+formattedDescriptors=
+Map[
+PaddedForm[#,{6,3},NumberPadding->{" "," "},DigitBlock->3,NumberSeparator->"\[ThinSpace]"\[ThinSpace]]&,
+combinedDescriptors,
+{2}
+];
 
-(* Calculate the ratio of the variation among samples to the variation due to replication *)
-(* Select those values larger than a set threshold *)
-chartdata=Reverse@Sort@Select[stdevTOT/stdevREP,#>threshold&];
+(* Generate output *)
+TableForm[
+formattedDescriptors,
+TableHeadings->{
+measurementNames,
+{
+Tooltip["min","MINIMUM raw reading for this\nmeasurement across all samples"],
+Tooltip["max","MAXIMUM raw reading for this\nmeasurement across all samples"],
+Tooltip["median","MEDIAN reading for this\nmeasurement across all samples"],
+Tooltip["ave","AVERAGE reading for this\nmeasurement across all samples"],
+Tooltip["stdev","Standard deviation for this measurement across all samples"],
+Tooltip["minMedian","smallest of the medians of\ngrouped replicates of each sample"],
+Tooltip["maxMedian","largest of the medians of\ngrouped replicates of each sample"],
+Tooltip["maxDeltaMedian","difference between the medians of the replicate set\nwith the highest vs. the lowest median value\nfor each measurement"]
+}
+},
+TableAlignments->{Right,Center}
+]
+]
 
-barchart=BarChart[Style[chartdata,Darker[Green,0.6]],
-ChartLabels\[Rule]Placed[Automatic,Bottom,Rotate[Style[#,GrayLevel[0.7],FontSize\[Rule]Scaled[0.015]],90Degree]&],
-BarSpacing\[Rule]Medium,
-(* The horizontal plotrange padding below gives some space at the right between the last bar and the frame, and not too much on the left between the frame and the first bar *)
-PlotRangePadding\[Rule]{{-0.3,0.3},{None,Scaled[0.05]}},
-Axes\[Rule]False,Frame\[Rule]True,FrameStyle\[Rule]Black,
-FrameLabel\[Rule]{None,Style["\[Sigma](meas.) / \[Sigma](replic.)",FontSize\[Rule]Scaled[0.02],Black]},
-FrameTicks\[Rule]{{Automatic,None},None},FrameTicksStyle\[Rule]Directive[Black,FontSize\[Rule]Scaled[0.015]],
-GridLines\[Rule]{None,Join[Range@Max@Ceiling@(chartdata/.Style[a_,__]\[RuleDelayed]a),{{threshold,Directive[Red,Thickness[0.01]]}}]},
-AspectRatio\[Rule]0.3,ImageSize\[Rule]Full,
-Epilog\[Rule]Inset[Style["Relative information content\nfor each raw instrumental measurement",FontSize\[Rule]Scaled[0.02],Black],Scaled[{0.99,1}],Scaled[{1,1}],Alignment\[Rule]Right]
-]/.t_Tooltip\[RuleDelayed]Cases[t,_Rectangle,All];(*this last replacement rule removes all the auto-generated Tooltip crud that sometimes messes up formatting in the front end*)
-*)
+ClearAll[iOverviewSparklines]
+iOverviewSparklines[data_]:=Module[
+{workingdata,sparklines},
 
 (*Check for the presence of sample labels, and remove them if present*)
 (*Also stable-sort the dataset so replicates for the same sample are guaranteed to be contiguous*)
@@ -1181,14 +1228,6 @@ Frame->None
 ]&@@@Transpose[workingdata],
 Appearance->"Horizontal"
 ]
-
-(*
-(* Generate formatted output *)
-Column[{
-sparklines,
-barchart
-}]
-*)
 ]
 
 
