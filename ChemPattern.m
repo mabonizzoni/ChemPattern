@@ -38,7 +38,7 @@ heatmap::usage="heatmap[\!\(\*
 StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] will produce a heat map plot of the entire dataset to quickly spot unevenness, data quality, obvious outlier points, and information distribution within each instrumental measurement. In the plot the data is presented by rows (samples) and columns (measurements). The data for each measurement type is standardized before plotting so the magnitudes of variation are comparable.\n\nFunction-specific options:\n\"sortedSet\" -> True  If this is set to False, then both the columns and the rows of the dataset are sorted alphabetically before plotting. The default value (True) does no sorting.\n\nThe function uses ArrayPlot to generate the graphics so it also takes general plotting function / Graphics options such as ColorFunction and ColorFunctionScaling, AspectRatio, Mesh, MeshStyle.";
 
 lda::usage="lda[\!\(\*
-StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] carries out Linear Discriminant Analysis on dataset and returns the transformed data as factor scores (default), or other numerical / graphical results. Each row of dataset should contain a sample; the first column contains the class identifier for that sample.\nOptions:\napplyfunc (Identity, Standardize (default), Rescale, ...)\noutput (\"scores\", \"vartable\", \"varlist\", \"eigenvectors\", \"eigensystem\", \"2D\" (= 2D score plot), \"2DL\" (= 2D score and loading plots, default), \"3D\", \"3DL\")\nswapaxes (default = {False,False})\nellipsoidcolor (Automatic, True).";
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] carries out Linear Discriminant Analysis on dataset and returns the transformed data as factor scores (default), or other numerical / graphical results. Each row of dataset should contain a sample; the first column contains the class identifier for that sample.\nOptions:\napplyfunc (Identity, Standardize (default), Rescale, ...)\noutput (\"scores\", \"vartable\", \"varlist\", \"eigenvectors\", \"eigensystem\", \"2D\" (= 2D score plot), \"2DL\" (= 2D score and loading plots, default), \"3D\", \"3DL\")\nswapaxes (default = {False,False})\nellipsoidcolor (Automatic, True)\nconfidencelevel (default is 0.95 = 95% confidence)";
 
 pairwiseScatterPlot::usage="pairwiseScatterPlot[\!\(\*
 StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] will produce scatter plots for each pair of variables against each other, overlaid with the coefficient of correlation for the pair\nThis function is most effective after some variable reduction, since generating all scatterplots in a large dataset can be very time consuming and lead to unreadable results.";
@@ -114,12 +114,13 @@ Begin["`Private`"]
 
 
 (* ::Input::Initialization:: *)
-Options[lda]={applyfunc->Standardize,output->"2DL",ellipsoidcolor->Automatic,swapaxes->False};
+Options[lda]={applyfunc->Standardize,output->"2DL",ellipsoidcolor->Automatic,swapaxes->False,confidencelevel->0.95};
 
 lda::outputoptions="The value `1` is not a valid plotting option. Valid options are: \"2DL\" (default), \"2D\", \"3DL\", \"3D\", \"scores\", \"eigenvectors\", \"eigensystem\", \"vartable\", \"varlist\".";
 lda::swapaxesnotboolean="The value `1` is not a valid swapaxes option. Use only True / False or combinations thereof.";
 lda::swapaxeslength="The value `1` given for the swapaxes option is not valid. Acceptable values are a single True / False, to be applied to all axes, or a list containing as many True/False values as there are axes in the requested plot.";
 lda::ellcolor="The value `1` for the ellipsoidcolor option is not valid. Acceptable values are: Automatic, True, False. Automatic settings were used.";
+lda::conflevel="`1` is an invalid value for the confidence level (0 < p < 1). The default 95% confidence level will be used instead.";
 
 lda[matrix_?MatrixQ,OptionsPattern[]]:=Module[
 {(* the definition below is important, although it looks silly!*)
@@ -134,11 +135,17 @@ partitioneddata,transformeddata,labeledtransformed,partitionedscores,
 grandmean,clustermeans,Swi,Sw,Sb,
 eigenvals,eigenvecs,
 plotdata,readyforplot,
+confidenceLevel,
 ellipsoids2D,coloredellipsoids2D,
 ellipsoids3D,coloredellipsoids3D,
 (* this longer color list was introduced when I ran the acetate and chloride LDA, which had many groups and the function ran out of colors *)
 colorlist=Join[ColorData[97,"ColorList"],Lighter@ColorData[97,"ColorList"],Lighter@ColorData[99,"ColorList"]]
 },
+
+(* Set the confidence level for ellipsoid plotting *)
+(* The deafult value is 0.95 for 95% confidence *)
+(* Incorrect values trigger a message, but the calculation continues anyway, using the default 95% confidence level *)
+confidenceLevel=With[{cf=OptionValue["confidencelevel"]},If[NumericQ[cf]&&0<cf<1,cf,Message[lda::conflevel,cf];0.95]];
 
 (* if column headers are present, extract them and assign them to columnheaderlist. *)
 (* if not, create a generic columnheaderlist and add it to the top of the dataset *)
@@ -153,9 +160,10 @@ hascolumnheaders=True;columnheaderlist=dataset[[1,2;;]]
 (* extract the class list from the first column in the dataset; remember that the first row is the column headers *)
 classlist=DeleteDuplicates[dataset[[2;;,1]]];
 
-(* Apply the applyfunc function to the numerical part of the dataaset *)
-(* applyfunction's default is Identity, i.e. do nothing; if standardization is desired, *)
-(* an appropriate standardizing function (e.g. Standardize itself) can be passed in *)
+(* Apply the applyfunc function to the numerical part of the dataset *)
+(* applyfunction's default is Standardize *)
+(* To do nothing, one can use Identity *)
+(* Any appropriate custom standardizing function can be passed in *)
 dataset[[2;;,2;;]]=OptionValue[applyfunc][dataset[[2;;,2;;]]];
 
 (* Row headers are used as class labels to partition the data into the user-specified classes *)
@@ -257,13 +265,12 @@ Message[lda::swapaxeslength,OptionValue[swapaxes]];Return[]
 plotdata=plotdata/.List[class_?StringQ,x_?NumberQ,y_?NumberQ]->List[class,xflip x,yflip y]
 ];
 
-(* Ellipsoids: in a non-correlated binormal distribution, 90% of the points lie within 2.15 standard deviations of the mean; 95% within 2.45 stdev; 99% within 3 stdev; 99.5% within 3.25 stdev *)
-(* The ellipsoids are expressed as a function of the covariance; so n times StDev = n^2 times Covariance *)
-(* To plot 95% confidence ellipsoids we need to stay within 2.45 stdev = (2.45)^2 covariance = ca. 6 covariance *)
+(* The basic size / shape of the ellipsoids is dictated by the covariance of each replicate set - but their size must also be adjusted to take into consideration the desired confidence level *) (* The multiplier for p confidence level (0 < p < 1) in n dimensions is given by InverseCDF[ChiSquareDistribution[n], p] *)
+(* So for instance for 95% in 2D: InverseCDF[ChiSquareDistribution[2], 0.95 = 5.991 i.e. around 6 "covariance units" *)
 partitionedscores=GatherBy[plotdata[[2;;]],First][[All,All,2;;3]];
-ellipsoids2D={Opacity[0],EdgeForm[{Darker@Gray}],Ellipsoid[Mean[#],6Covariance[#]]}&/@partitionedscores;
+ellipsoids2D={Opacity[0],EdgeForm[{Darker@Gray}],Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[2],confidenceLevel]Covariance[#]]}&/@partitionedscores;
 coloredellipsoids2D=MapThread[
-{Opacity[0],EdgeForm[{#2,AbsoluteThickness[2]}],Ellipsoid[Mean[#1],6Covariance[#1]]}&,
+{Opacity[0],EdgeForm[{#2,AbsoluteThickness[2]}],Ellipsoid[Mean[#1],InverseCDF[ChiSquareDistribution[2],confidenceLevel]Covariance[#1]]}&,
 {
 partitionedscores,
 colorlist[[1;;First@Dimensions@partitionedscores]]
@@ -346,9 +353,9 @@ plotdata=plotdata/.List[class_?StringQ,x_?NumberQ,y_?NumberQ,z_?NumberQ]->List[c
 
 (* Ellipsoids: see above in plot 2D for discussion of width of ellipsoids *)
 partitionedscores=GatherBy[plotdata[[2;;]],First][[All,All,2;;4]];
-ellipsoids3D={Opacity[0.1,Black],Ellipsoid[Mean[#],6Covariance[#]]}&/@partitionedscores;
+ellipsoids3D={Opacity[0.1,Black],Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[3],confidenceLevel]Covariance[#]]}&/@partitionedscores;
 coloredellipsoids3D=MapThread[
-{Opacity[0.2,#2],Ellipsoid[Mean[#1],6Covariance[#1]]}&,
+{Opacity[0.2,#2],Ellipsoid[Mean[#1],InverseCDF[ChiSquareDistribution[3],confidenceLevel]Covariance[#1]]}&,
 {
 partitionedscores,
 colorlist[[1;;First@Dimensions@partitionedscores]]
@@ -598,10 +605,9 @@ pcas=Chop[PrincipalComponents[#,Method->"Correlation"][[All,;;dimensions]]]&/@Qu
 labeledpcas=MapThread[AssociationThread[#1->#2]&,{Keys/@structuredData[[All,"in"]],pcas}];
 
 (* The size of the 95% ellipsoid, in units of covariance, depends on the number of dimensions *)
-(* Calculations showed that the width of the ellipsoid that captures 95% of the points in n-dimensions *)
-(* is approximated by 1.892 + 2.133 n - 0.06906 n^2 + 0.001985 n^3 *)
+(* The "expansion factor" is given by InverseCDF[ChiSquareDistribution[n], p] where n = number of dimensions, and 0 < p < 1 is the confidence level (e.g. 0.95 for 95%) *)
 (* Note that, at high dimensions, the ellipsoid becomes so large that almost no points are rejected *)
-rmfs=RegionMember[Ellipsoid[Mean[#],(1.892+2.133dimensions-0.06906dimensions^2+0.001985dimensions^3)Covariance[Values@#]]]&/@labeledpcas;
+rmfs=RegionMember[Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[dimensions],0.95]Covariance[Values@#]]]&/@labeledpcas;
 selectors=MapThread[GroupBy[#1,#2,Keys]&,{labeledpcas,rmfs}];
 
 keytake[{allinputforlabel_,selector_}]:=<|
@@ -637,9 +643,10 @@ Query["in",Length]@setOfReplicates]
 ];
 
 (* generate new ellipsoid for plotting*)
-(* in 2D, a 95% confidence ellipsoid is 6 covariances wide*)
+(* The exact value of the confidence level multiplier is InverseCDF[ChiSquareDistribution[2], 0.95] = 5.991 *)
+(* in 2D, a 95% confidence ellipsoid is roughly 6 covariances wide*)
 (* Values needed here because Covariance can't handle the association as a single matrix*)
- newEllipsoid=Ellipsoid[Mean[structuredData["in"]],6Covariance[Values@structuredData["in"]]];
+ newEllipsoid=Ellipsoid[Mean[structuredData["in"]],InverseCDF[ChiSquareDistribution[2], 0.95]Covariance[Values@structuredData["in"]]];
 
 (* Prepare plots: *)
 (* the inplot carries all the graphics formatting options for the overall plot,*)
@@ -923,26 +930,34 @@ Evaluate@iterator
 
 
 (* ::Input::Initialization:: *)
-Options[pca]={output->"2DL"};
+Options[pca]={output->"2DL",confidencelevel->0.95};
+
+pca::conflevel="`1` is an invalid value for the confidence level (0 < p < 1). The default 95% confidence level will be used instead.";
 
 pca[data_?MatrixQ,options:OptionsPattern[]]:=
 Module[
 {
 vars=data[[1,2;;]],
 labels=data[[2;;,1]],
+confidenceLevel,
 scores,scores2D,annotated,scoregroups,
 leftSingularValues,s,eigenvecsT,
 eigenvals,eigenvecs
 },
 
+(*Set the confidence level for ellipsoid plotting*)
+(*The deafult value is 0.95 for 95% confidence*)
+(*Incorrect values trigger a message,but the calculation continues anyway,using the default 95% confidence level*)
+confidenceLevel=With[{cf=OptionValue["confidencelevel"]},If[NumericQ[cf]&&0<cf<1,cf,Message[pca::conflevel,cf];0.95]];
+
 (* results of singular value decomposition: {leftSingularValues, s, Transpose@rightSingularValues} *)
 (* PCA scores = leftSingularValues.s *)
 
 (* eigenVALUES of the correlation of data = diagonal elements of s^2/(number of variables - 1) *)
-(* note that in most cases the normalization factor (number of variables -1) can be ignored, because the eigenvalues will be renormalized anyway *)
+(* note that in most cases the normalization factor (number of variables - 1) can be ignored, because the eigenvalues will be renormalized anyway *)
 
 (* the right singular values happen to be the eigenVECTORS of the correlation matrix of data *)
-(* here they are indicated as evecsT, because they are returned column-wise (i.e. each column of evecsT is an eigenvector) *)
+(* here they are indicated as eigenvecsT, because they are returned column-wise (i.e. each column of evecsT is an eigenvector) *)
 (* think of it as: eigenvecsT = Transpose@Eigenvectors[Correlation@data]; ignoring sign changes, since sign is arbitrary anyway *)
 
 {leftSingularValues,s,eigenvecsT}=SingularValueDecomposition[Standardize@data[[2;;,2;;]]];
@@ -983,7 +998,8 @@ Style["PC1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",Font
 Style["PC2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Red]
 },
 AspectRatio->1,
-Epilog->{{Opacity[0],EdgeForm[Black],Ellipsoid[Mean@#,6Covariance@#]}&/@scoregroups}
+(* the expansion factor for ellipsoids in n dimensions at confidence level p is given by InverseCDF[ChiSquareDistribution[n], p] *)
+Epilog->{{Opacity[0],EdgeForm[Black],Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[2], confidenceLevel]Covariance[#]]}&/@scoregroups}
 ](*end ListPlot for 2D PCA scores plot*),
 
 If[OptionValue[output]=="2DL",
