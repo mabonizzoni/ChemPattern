@@ -12,11 +12,21 @@
 (* ::Input::Initialization:: *)
 BeginPackage["lda`"]
 
-Unprotect[filterVars,groupcontribs,heatmap,lda,pairwiseScatterPlot,pca,projectorLDA,outlierPCA,overview,removeOutliers,retainedInfo,selectVarSubsets];
-ClearAll[filterVars,groupcontribs,heatmap,lda,pairwiseScatterPlot,pca,projectorLDA,outlierPCA,overview,removeOutliers,retainedInfo,selectVarSubsets];
+Unprotect[addLabels,filterVars,groupcontribs,heatmap,lda,pairwiseScatterPlot,pca,projectorLDA,outlierPCA,overview,removeOutliers,retainedInfo,selectVarSubsets];
+ClearAll[addLabels,filterVars,groupcontribs,heatmap,lda,pairwiseScatterPlot,pca,projectorLDA,outlierPCA,overview,removeOutliers,retainedInfo,selectVarSubsets];
 
 
 (* ::Input::Initialization:: *)
+addLabels::usage="addLabels[ \!\(\*
+StyleBox[\"matrix\",\nFontSlant->\"Italic\"]\)\!\(\*
+StyleBox[\" \",\nFontSlant->\"Italic\"]\)]\naddLabels[ \!\(\*
+StyleBox[\"matrix\",\nFontSlant->\"Italic\"]\), \!\(\*
+StyleBox[\"rowLabels\",\nFontSlant->\"Italic\"]\), \!\(\*
+StyleBox[\"columnLabels\",\nFontSlant->\"Italic\"]\)]\naddLabels[ \!\(\*
+StyleBox[\"matrix\",\nFontSlant->\"Italic\"]\), \!\(\*
+StyleBox[\"rowLabels\",\nFontSlant->\"Italic\"]\), \!\(\*
+StyleBox[\"columnLabels\",\nFontSlant->\"Italic\"]\), \"TopLeft\" -> spacer]";
+
 filterVars::usage="filterVars[\!\(\*
 StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] starts an interactive session to explore variable removal from LDA analysis of \!\(\*
 StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\). Move the threshold bar with the mouse to change the variable selection threshold.\n\nfilterVars[\!\(\*
@@ -89,6 +99,42 @@ selectVarSubsets::emptystring="One of the criteria contains an empty string (\"\
 
 (* ::Input::Initialization:: *)
 Begin["`Private`"]
+
+
+(* ::Section:: *)
+(*addLabels: helper function to re-add row and column labels to a numbers-only data set*)
+
+
+(* ::Text:: *)
+(*The function will try to detect whether the labels are given in order of row, then column or column, then row on the basis of the dimensions of the numbers matrix and of the label vectors.*)
+(*If not match can be found, then the function is returned unevaluated with an error*)
+(*If no labels are provided, then generic "row_n" and "column_n" labels will be generated.*)
+(*If the data matrix is square, both function definitions would apply, so the first one in the code below will match first, so the first set of labels will be assumed to be the rows. If another result is desired, one can swap the order of the labels in the function call.*)
+
+
+(* ::Input::Initialization:: *)
+Options[addLabels]={"TopLeft"->""};
+addLabels::dims="The dimensions of the two sets of labels provided do not match those of the data matrix.";
+
+(* Labels given as rows, then columns *)
+(* For square m matrices, this will match first *)
+addLabels[m_?MatrixQ,set1_,set2_,OptionsPattern[]]/;(Length/@{set1,set2}==Dimensions[m]):=
+Join[List/@Insert[set1,OptionValue["TopLeft"],1],Insert[m,set2,1],2]
+
+(* Labels given as columns, then rows *)
+addLabels[m_?MatrixQ,set1_,set2_,OptionsPattern[]]/;(Length/@{set1,set2}==Reverse@Dimensions[m]):=
+Join[List/@Insert[set2,OptionValue["TopLeft"],1],Insert[m,set1,1],2]
+
+(* No labels given: automatic generated a set from dimensions *)
+addLabels[m_?MatrixQ,OptionsPattern[]]:=
+Join[
+List/@Insert[Array["row"~~ToString[#]&,Length@m],OptionValue["TopLeft"],1],
+Insert[m,Array["col"~~ToString[#]&,Last@Dimensions@m],1],
+2
+]
+
+(* Since the definitions above did not match, the dimensions of the two label sets *)(* must be mismatched to those of the m matrix: *)
+addLabels[m_?MatrixQ,set1_,set2_,OptionsPattern[]]:=""/;Message[addLabels::dims]
 
 
 (* ::Section::Initialization:: *)
@@ -1420,11 +1466,8 @@ Mesh->meshLines,MeshStyle->OptionValue[MeshStyle]
 
 
 (* ::Input::Initialization:: *)
-End[]
+End[];
 
-Protect[filterVars,groupcontribs,heatmap,lda,pairwiseScatterPlot,pca,projectorLDA,outlierPCA,overview,removeOutliers,retainedInfo,selectVarSubsets]
+Protect[addLabels,filterVars,groupcontribs,heatmap,lda,pairwiseScatterPlot,pca,projectorLDA,outlierPCA,overview,removeOutliers,retainedInfo,selectVarSubsets];
 
-EndPackage[]
-
-
-
+EndPackage[];
