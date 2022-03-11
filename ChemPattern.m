@@ -568,7 +568,7 @@ outlierPCA::method="An unrecognized method option (`1`) was used";
 outlierPCA::output="An unrecognized output type was requested (`1`)";
 
 (* default values for options *)
-Options[outlierPCA]={dimensions->2,method->"SinglePass",output->"Plots"};
+Options[outlierPCA]={dimensions->2,method->"SinglePass",output->"Plots",confidencelevel->0.95};
 
 (* function definition to deal with data provided as lists ("old standard format") *)
 (* restructureData returns a structured association, one of the keys being the list of variable names *)
@@ -595,15 +595,15 @@ OptionValue[dimensions]>3,Message[outlierPCA::dimcaution]
 (* Carry out actual calcuations *)
 results=
 Switch[OptionValue[method],
-"SinglePass",iOutlierPCA[replicates,OptionValue[dimensions]],
-"Recursive",FixedPoint[iOutlierPCA[#,OptionValue[dimensions]]&,replicates,defaultMaxIterations],
-{"Recursive",_Integer},FixedPoint[iOutlierPCA[#,OptionValue[dimensions]]&,replicates,OptionValue[method][[2]]],
+"SinglePass",iOutlierPCA[replicates,options],
+"Recursive",FixedPoint[iOutlierPCA[#,options]&,replicates,defaultMaxIterations],
+{"Recursive",_Integer|Infinity},FixedPoint[iOutlierPCA[#,options]&,replicates,OptionValue[method][[2]]],
 _,(Message[outlierPCA::method,OptionValue[method]];Return[])(*option value not recognized*)
 ];
 
 (* Generate output *)
 Switch[OptionValue[output],
-"Plots",KeyValueMap[iOutlierPlotter,results],
+"Plots",KeyValueMap[iOutlierPlotter[#1,#2,options]&,results],
 "Lists",results,
 "OutlierLists",Keys/@results[[All,"out"]],
 "CleanedSet",iRemakeDataset[Append[results,KeySelect[data,MatchQ["varnames"]]]],
@@ -644,16 +644,16 @@ Association@*MapIndexed[First@#2->#1&]
 
 (* generating the region member functions *)
 ClearAll[iOutlierPCA]
-iOutlierPCA[structuredData_Association,dimensions_,options:OptionsPattern[outlierPCA]]:=Module[
+iOutlierPCA[structuredData_Association,options:OptionsPattern[{iOutlierPCA,outlierPCA}]]:=Module[
 {pcas,labeledpcas,rmfs,selectors,keytake},
 
-pcas=Chop[PrincipalComponents[#,Method->"Correlation"][[All,;;dimensions]]]&/@Query[All,"in",Values]@structuredData;
+pcas=Chop[PrincipalComponents[#,Method->"Correlation"][[All,;;OptionValue[dimensions]]]]&/@Query[All,"in",Values]@structuredData;
 labeledpcas=MapThread[AssociationThread[#1->#2]&,{Keys/@structuredData[[All,"in"]],pcas}];
 
 (* The size of the 95% ellipsoid, in units of covariance, depends on the number of dimensions *)
 (* The "expansion factor" is given by InverseCDF[ChiSquareDistribution[n], p] where n = number of dimensions, and 0 < p < 1 is the confidence level (e.g. 0.95 for 95%) *)
 (* Note that, at high dimensions, the ellipsoid becomes so large that almost no points are rejected *)
-rmfs=RegionMember[Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[dimensions],0.95]Covariance[Values@#]]]&/@labeledpcas;
+rmfs=RegionMember[Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[OptionValue[dimensions]],OptionValue[confidencelevel]]Covariance[Values@#]]]&/@labeledpcas;
 selectors=MapThread[GroupBy[#1,#2,Keys]&,{labeledpcas,rmfs}];
 
 keytake[{allinputforlabel_,selector_}]:=<|
@@ -664,7 +664,7 @@ Merge[{structuredData,selectors},keytake]
 ]
 
 ClearAll[iOutlierPlotter]
-iOutlierPlotter[label_String,setOfReplicates_Association]:=Module[
+iOutlierPlotter[label_String,setOfReplicates_Association,options:OptionsPattern[{iOutlierPlotter,outlierPCA}]]:=Module[
 {(* list of internal variables *)
 pcas,labeledpcas,
 structuredData,
@@ -692,7 +692,7 @@ Query["in",Length]@setOfReplicates]
 (* The exact value of the confidence level multiplier is InverseCDF[ChiSquareDistribution[2], 0.95] = 5.991 *)
 (* in 2D, a 95% confidence ellipsoid is roughly 6 covariances wide*)
 (* Values needed here because Covariance can't handle the association as a single matrix*)
- newEllipsoid=Ellipsoid[Mean[structuredData["in"]],InverseCDF[ChiSquareDistribution[2], 0.95]Covariance[Values@structuredData["in"]]];
+ newEllipsoid=Ellipsoid[Mean[structuredData["in"]],InverseCDF[ChiSquareDistribution[2], OptionValue[confidencelevel]]Covariance[Values@structuredData["in"]]];
 
 (* Prepare plots: *)
 (* the inplot carries all the graphics formatting options for the overall plot,*)
