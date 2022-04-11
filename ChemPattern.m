@@ -1,6 +1,6 @@
 (* ::Package:: *)
 
-(* ::Section::Initialization:: *)
+(* ::Section::Initialization::Closed:: *)
 (*The Bonizzoni Group - LDA functions package*)
 
 
@@ -93,7 +93,7 @@ StyleBox[\"data\",\nFontSlant->\"Italic\"]\), {\"3\", \"D\", Except[\"5\"]}] sel
 selectVarSubsets::emptystring="One of the criteria contains an empty string (\"\"). Check your input.";
 
 
-(* ::Section::Initialization:: *)
+(* ::Section::Initialization::Closed:: *)
 (*Implementation code below*)
 
 
@@ -101,7 +101,7 @@ selectVarSubsets::emptystring="One of the criteria contains an empty string (\"\
 Begin["`Private`"]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*addLabels: helper function to re-add row and column labels to a numbers-only data set*)
 
 
@@ -137,7 +137,7 @@ Insert[m,Array["col"~~ToString[#]&,Last@Dimensions@m],1],
 addLabels[m_?MatrixQ,set1_,set2_,OptionsPattern[]]:=""/;Message[addLabels::dims]
 
 
-(* ::Section::Initialization:: *)
+(* ::Section::Initialization::Closed:: *)
 (*Functional implementation of LDA*)
 
 
@@ -463,7 +463,7 @@ lda[dataset_/;Not[MatrixQ[dataset]],OptionsPattern[]]:=Message[lda::notamatrix]
 
 
 
-(* ::Section::Initialization:: *)
+(* ::Section::Initialization::Closed:: *)
 (*Group contribution helper functions*)
 
 
@@ -501,7 +501,7 @@ ImageSize->Scaled[0.25]
 ]
 
 
-(* ::Section::Initialization:: *)
+(* ::Section::Initialization::Closed:: *)
 (*Detection of outliers using PCA*)
 
 
@@ -747,7 +747,7 @@ Join[{firstRow},flatTable]
 ]
 
 
-(* ::Section::Initialization:: *)
+(* ::Section::Initialization::Closed:: *)
 (*selectVarSubsets: helper function to select homogeneous instrumental variable subsets for analysis*)
 
 
@@ -763,7 +763,7 @@ selectVarSubsets[set_,criterion_]:=Transpose[Insert[Select[Transpose[set],String
 selectVarSubsets[set_,criteria_List]:=Fold[selectVarSubsets,set,criteria]
 
 
-(* ::Section::Initialization:: *)
+(* ::Section::Initialization::Closed:: *)
 (*filterVars: helper function to use with Manipulate to interactively filter low-contribution variables to LDA*)
 
 
@@ -862,7 +862,7 @@ Spacings->{
 ]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*retainedInfo: a function to calculate the % retained information as a function of filter threshold*)
 
 
@@ -906,7 +906,7 @@ Table[{t,iRetainedInfo[{evals,evecs},t]},{t,0,maxthreshold,maxthreshold/200}]
 ]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*effectOfRemovingVariables*)
 
 
@@ -971,13 +971,14 @@ Evaluate@iterator
 ]
 
 
-(* ::Section::Initialization:: *)
+(* ::Section::Initialization::Closed:: *)
 (*pca: a PCA helper function*)
 
 
 (* ::Input::Initialization:: *)
 Options[pca]={output->"2DL",confidencelevel->0.95};
 
+pca::outputoptions="The value `1` is not a valid plotting option. Valid options are: \"2DL\" (default), \"2D\", \"scores\", \"eigenvectors\", \"eigensystem\", \"vartable\", \"varlist\".";
 pca::conflevel="`1` is an invalid value for the confidence level (0 < p < 1). The default 95% confidence level will be used instead.";
 
 pca[data_?MatrixQ,options:OptionsPattern[]]:=
@@ -1108,13 +1109,17 @@ eigenvecs,
 
 (* Return the list: {normalized eigenvalues, eigenvectors} *)
 OptionValue[output]=="eigensystem",
-{Normalize[eigenvals,Total],eigenvecs}
+{Normalize[eigenvals,Total],eigenvecs},
+
+(* Output requested is invalid: print error message and abort *)
+True,
+Message[pca::outputoptions,OptionValue[output]];Abort[]
 
 ](*end Which*)
 ](*end Module*)
 
 
-(* ::Section::Initialization:: *)
+(* ::Section::Initialization::Closed:: *)
 (*removeOutliers: helper function to remove outlier points*)
 
 
@@ -1147,7 +1152,7 @@ KeyValueMap[datasetAsAssociation[#1][[Range[Length[datasetAsAssociation[#1]]]~Co
 ]
 
 
-(* ::Section::Initialization:: *)
+(* ::Section::Initialization::Closed:: *)
 (*overview: generates sparklines for each instrumental variable in the dataset, for quick identification of useless variables*)
 
 
@@ -1293,7 +1298,7 @@ Appearance->"Horizontal"
 ]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*projectorLDA: allows the projection of a second data set onto the LDA score plot generated  from the first one*)
 
 
@@ -1340,7 +1345,7 @@ projectorLDA[projectorSet_?ArrayQ,projectedSet_?ArrayQ,projectedSuffix_String,op
 projectorLDA[projectorSet_?ArrayQ,projectedSet_?ArrayQ,options:OptionsPattern[lda]]:=projectorLDA[projectorSet,"",projectedSet,"",options]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*pairwiseScatterPlots:*)
 
 
@@ -1380,7 +1385,7 @@ i>j,plotfunction[i,j]
 ]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*heatmap:*)
 
 
@@ -1461,7 +1466,7 @@ Mesh->meshLines,MeshStyle->OptionValue[MeshStyle]
 
 
 
-(* ::Section::Initialization:: *)
+(* ::Section::Initialization::Closed:: *)
 (*Closing out the package*)
 
 
