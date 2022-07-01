@@ -1,6 +1,6 @@
 (* ::Package:: *)
 
-(* ::Section::Initialization::Closed:: *)
+(* ::Section::Initialization:: *)
 (*The Bonizzoni Group - LDA functions package*)
 
 
@@ -137,8 +137,8 @@ Insert[m,Array["col"~~ToString[#]&,Last@Dimensions@m],1],
 addLabels[m_?MatrixQ,set1_,set2_,OptionsPattern[]]:=""/;Message[addLabels::dims]
 
 
-(* ::Section::Initialization::Closed:: *)
-(*Functional implementation of LDA*)
+(* ::Section::Initialization:: *)
+(*lda: our implementation of LDA*)
 
 
 (* ::Subsection::Initialization:: *)
@@ -308,11 +308,11 @@ _,(* too many parameters for a 2D plot; possibly ambiguous *)
 Message[lda::swapaxeslength,OptionValue[swapaxes]];Return[]
 ];
 
-plotdata=plotdata/.List[class_?StringQ,x_?NumberQ,y_?NumberQ]->List[class,xflip x,yflip y]
+plotdata=plotdata/.List[class_?StringQ,x_?NumberQ,y_?NumberQ]:>List[class,xflip x,yflip y]
 ];
 
 (* The basic size / shape of the ellipsoids is dictated by the covariance of each replicate set - but their size must also be adjusted to take into consideration the desired confidence level *) (* The multiplier for p confidence level (0 < p < 1) in n dimensions is given by InverseCDF[ChiSquareDistribution[n], p] *)
-(* So for instance for 95% in 2D: InverseCDF[ChiSquareDistribution[2], 0.95 = 5.991 i.e. around 6 "covariance units" *)
+(* So for instance for 95% in 2D: InverseCDF[ChiSquareDistribution[2], 0.95] = 5.991 i.e. around 6 "covariance units" *)
 partitionedscores=GatherBy[plotdata[[2;;]],First][[All,All,2;;3]];
 ellipsoids2D={Opacity[0],EdgeForm[{Darker@Gray}],Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[2],confidenceLevel]Covariance[#]]}&/@partitionedscores;
 coloredellipsoids2D=MapThread[
@@ -343,7 +343,15 @@ True,Message[lda::ellcolor,OptionValue[ellipsoidcolor]];ellipsoids2D
 If[OptionValue[output]=="2DL",
 (* 2D loading plot *)
 ListPlot[
-MapThread[Labeled[100#1,Style[#2<>" "<>ToString@Round[100#1,1],Medium]]&,{Transpose[eigenvecs[[1;;2]]^2],columnheaderlist}],
+MapThread[
+(* old version: it included contributions in the labels, but it was too busy, and we often end up removing them anyway! *)
+(*Labeled[100#1,Style[#2<>" "<>ToString@Round[100#1,1],Medium]]&,*)
+(* new version only has measurement name; no longer includes the contributions *)
+(* LabelVisibility priority calculated through Norm of the corresponding vector *)
+(* this preferentially shows labels for contributions further away from the origin, i.e. more important *)
+Labeled[100#1,Style[#2,Medium],LabelVisibility->Norm[#1]]&,
+{Transpose[eigenvecs[[1;;2]]^2],columnheaderlist}
+],
 PlotStyle->Directive[Black,PointSize[0.025]],
 (* The aspect ratio and plotrange definitions below make the plot square, while still adapting the plot range to the values being plotted *)
 AspectRatio->1,PlotRange->{{0,105Max[Transpose[eigenvecs[[1;;2]]^2]]},{0,105Max[Transpose[eigenvecs[[1;;2]]^2]]}},PlotRangePadding->Scaled[.05],
@@ -463,8 +471,161 @@ lda[dataset_/;Not[MatrixQ[dataset]],OptionsPattern[]]:=Message[lda::notamatrix]
 
 
 
+(* ::Section::Initialization:: *)
+(*pca: a PCA helper function*)
+
+
+(* ::Input::Initialization:: *)
+Options[pca]={output->"2DL",confidencelevel->0.95};
+
+pca::outputoptions="The value `1` is not a valid plotting option. Valid options are: \"2DL\" (default), \"2D\", \"scores\", \"eigenvectors\", \"eigensystem\", \"vartable\", \"varlist\".";
+pca::conflevel="`1` is an invalid value for the confidence level (0 < p < 1). The default 95% confidence level will be used instead.";
+
+pca[data_?MatrixQ,options:OptionsPattern[]]:=
+Module[
+{
+vars=data[[1,2;;]],
+labels=data[[2;;,1]],
+confidenceLevel,
+scores,scores2D,annotated,scoregroups,
+leftSingularValues,s,eigenvecsT,
+eigenvals,eigenvecs
+},
+
+(*Set the confidence level for ellipsoid plotting*)
+(*The deafult value is 0.95 for 95% confidence*)
+(*Incorrect values trigger a message,but the calculation continues anyway,using the default 95% confidence level*)
+confidenceLevel=With[{cf=OptionValue["confidencelevel"]},If[NumericQ[cf]&&0<cf<1,cf,Message[pca::conflevel,cf];0.95]];
+
+(* results of singular value decomposition: {leftSingularValues, s, Transpose@rightSingularValues} *)
+(* PCA scores = leftSingularValues.s *)
+
+(* eigenVALUES of the correlation of data = diagonal elements of s^2/(number of variables - 1) *)
+(* note that in most cases the normalization factor (number of variables - 1) can be ignored, because the eigenvalues will be renormalized anyway *)
+
+(* the right singular values happen to be the eigenVECTORS of the correlation matrix of data *)
+(* here they are indicated as eigenvecsT, because they are returned column-wise (i.e. each column of evecsT is an eigenvector) *)
+(* think of it as: eigenvecsT = Transpose@Eigenvectors[Correlation@data]; ignoring sign changes, since sign is arbitrary anyway *)
+
+{leftSingularValues,s,eigenvecsT}=SingularValueDecomposition[Standardize@data[[2;;,2;;]]];
+eigenvals=Diagonal[s]^2;
+scores=leftSingularValues . s;
+scores2D=scores[[All,;;2]];
+eigenvecs=Transpose@eigenvecsT;
+
+annotated=Merge[Identity]@MapThread[
+<|#1->Tooltip[#2,#1]|>&,
+{labels,scores2D}
+];
+scoregroups=GatherBy[Transpose@Insert[Transpose@scores2D,labels,1],First][[All,All,2;;]];
+
+(*********)
+(* OUTPUT *)
+(*********)
+
+Which[
+(* 2D plot of scores and loadings *)
+OptionValue[output]=="2DL"||OptionValue[output]=="2D",
+If[
+OptionValue[output]==="2DL",
+GraphicsRow[#,ImageSize->Scaled[2/3]]&,(*scores and loadings plots to be presented in a row*)
+Show[#,ImageSize->Scaled[1/3]]&(*only the scores plot was requested, so just show it at proper size*)
+]@{
+(* PCA scores plot *)
+ListPlot[
+annotated,
+PlotStyle->PointSize[0.015],
+PlotLegends->None,
+Frame->True,Axes->False,
+PlotRangePadding->Scaled[.05],
+LabelStyle->Directive[Black,16],
+FrameStyle->Black,
+FrameLabel->{
+Style["PC1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Blue],
+Style["PC2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Red]
+},
+AspectRatio->1,
+(* the expansion factor for ellipsoids in n dimensions at confidence level p is given by InverseCDF[ChiSquareDistribution[n], p] *)
+Epilog->{{Opacity[0],EdgeForm[Black],Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[2], confidenceLevel]Covariance[#]]}&/@scoregroups}
+](*end ListPlot for 2D PCA scores plot*),
+
+If[OptionValue[output]=="2DL",
+(* add 2D loadings plot *)
+ListPlot[
+MapThread[
+(* old version: included contributions to PC1, PC2 in each label; however, we often remove these afterwards! *)
+(*Labeled[100#1,Style[#2<>" "<>ToString@Round[100#1,0.1],Medium]]&,*)
+(* new version only has measurement name; no longer includes the contributions *)
+(* LabelVisibility priority calculated through Norm of the corresponding vector *)
+(* this preferentially shows labels for contributions further away from the origin, i.e. more important *)
+Labeled[100#1,Style[#2,Medium],LabelVisibility->Norm[#]]&,
+{Transpose[eigenvecs[[1;;2]]^2],vars}
+],
+PlotStyle->Directive[Black,PointSize[0.025]],
+(* The aspect ratio and plotrange definitions below make the plot square, while still adapting the plot range to the values being plotted *)
+AspectRatio->1,
+PlotRange->With[{max=105Max[Transpose[eigenvecs[[;;2]]^2]]},{{0,max},{0,max}}],
+PlotRangePadding->Scaled[0.05],
+AxesOrigin->{0,0},
+Frame->{True,True,False,False},FrameStyle->Directive[Black,FontSize->15],
+FrameLabel->{
+Style["Contrib. to PC1 (%)",FontSize->16,Blue],
+Style["Contrib. to PC2 (%)",FontSize->16,Red]
+}
+](*end ListPlot for loadings plot *),
+(* 2D loading plot not requested: add "nothing" to the GraphicsRow *)
+Nothing
+](*end If*)
+}
+,
+
+
+(* Return the transformed data as labeled SCORES, e.g. for external plotting *)
+OptionValue[output]=="scores",
+Transpose@Prepend[
+(* Add the ROW headers from the original dataset back in *)
+Transpose@Prepend[
+(* Add the factor number COLUMN headers *)
+scores,Array["PC"<>ToString[#]&,Dimensions[scores][[2]] ]
+],
+{""}~Join~labels
+],
+
+
+(* Return a formatted table of the contributions of each variable to the first three factors *)
+OptionValue[output]=="vartable",
+Style[
+TableForm[Transpose@Round[100eigenvecs[[1;;3]]^2,0.1],TableHeadings->{vars, {"PC1","PC2","PC3"}},TableAlignments->Right],
+FontFamily->"Arial",FontSize->14
+],
+
+
+(* Return the contributions of each variable to all factors, WITHOUT formatting *)
+OptionValue[output]=="varlist",
+Return[
+Transpose@Join[{vars}, Round[100eigenvecs^2,0.1]]
+],
+
+
+(* Return eigenvector matrix *)
+OptionValue[output]=="eigenvectors",
+eigenvecs,
+
+
+(* Return the list: {normalized eigenvalues, eigenvectors} *)
+OptionValue[output]=="eigensystem",
+{Normalize[eigenvals,Total],eigenvecs},
+
+(* Output requested is invalid: print error message and abort *)
+True,
+Message[pca::outputoptions,OptionValue[output]];Abort[]
+
+](*end Which*)
+](*end Module*)
+
+
 (* ::Section::Initialization::Closed:: *)
-(*Group contribution helper functions*)
+(*groupcontribs: group contribution helper functions*)
 
 
 (* ::Input::Initialization:: *)
@@ -502,7 +663,7 @@ ImageSize->Scaled[0.25]
 
 
 (* ::Section::Initialization::Closed:: *)
-(*Detection of outliers using PCA*)
+(*outlierPCA: detection of outliers using PCA*)
 
 
 (* ::Subsection:: *)
@@ -969,154 +1130,6 @@ lda[filterVars[dataset,t,output->"ReducedSet"],output->"scores"][[2;;,1;;3]]
 Evaluate@iterator
 ]
 ]
-
-
-(* ::Section::Initialization::Closed:: *)
-(*pca: a PCA helper function*)
-
-
-(* ::Input::Initialization:: *)
-Options[pca]={output->"2DL",confidencelevel->0.95};
-
-pca::outputoptions="The value `1` is not a valid plotting option. Valid options are: \"2DL\" (default), \"2D\", \"scores\", \"eigenvectors\", \"eigensystem\", \"vartable\", \"varlist\".";
-pca::conflevel="`1` is an invalid value for the confidence level (0 < p < 1). The default 95% confidence level will be used instead.";
-
-pca[data_?MatrixQ,options:OptionsPattern[]]:=
-Module[
-{
-vars=data[[1,2;;]],
-labels=data[[2;;,1]],
-confidenceLevel,
-scores,scores2D,annotated,scoregroups,
-leftSingularValues,s,eigenvecsT,
-eigenvals,eigenvecs
-},
-
-(*Set the confidence level for ellipsoid plotting*)
-(*The deafult value is 0.95 for 95% confidence*)
-(*Incorrect values trigger a message,but the calculation continues anyway,using the default 95% confidence level*)
-confidenceLevel=With[{cf=OptionValue["confidencelevel"]},If[NumericQ[cf]&&0<cf<1,cf,Message[pca::conflevel,cf];0.95]];
-
-(* results of singular value decomposition: {leftSingularValues, s, Transpose@rightSingularValues} *)
-(* PCA scores = leftSingularValues.s *)
-
-(* eigenVALUES of the correlation of data = diagonal elements of s^2/(number of variables - 1) *)
-(* note that in most cases the normalization factor (number of variables - 1) can be ignored, because the eigenvalues will be renormalized anyway *)
-
-(* the right singular values happen to be the eigenVECTORS of the correlation matrix of data *)
-(* here they are indicated as eigenvecsT, because they are returned column-wise (i.e. each column of evecsT is an eigenvector) *)
-(* think of it as: eigenvecsT = Transpose@Eigenvectors[Correlation@data]; ignoring sign changes, since sign is arbitrary anyway *)
-
-{leftSingularValues,s,eigenvecsT}=SingularValueDecomposition[Standardize@data[[2;;,2;;]]];
-eigenvals=Diagonal[s]^2;
-scores=leftSingularValues . s;
-scores2D=scores[[All,;;2]];
-eigenvecs=Transpose@eigenvecsT;
-
-annotated=Merge[Identity]@MapThread[
-<|#1->Tooltip[#2,#1]|>&,
-{labels,scores2D}
-];
-scoregroups=GatherBy[Transpose@Insert[Transpose@scores2D,labels,1],First][[All,All,2;;]];
-
-(*********)
-(* OUTPUT *)
-(*********)
-
-Which[
-(* 2D plot of scores and loadings *)
-OptionValue[output]=="2DL"||OptionValue[output]=="2D",
-If[
-OptionValue[output]==="2DL",
-GraphicsRow[#,ImageSize->Scaled[2/3]]&,(*scores and loadings plots to be presented in a row*)
-Show[#,ImageSize->Scaled[1/3]]&(*only the scores plot was requested, so just show it at proper size*)
-]@{
-(* PCA scores plot *)
-ListPlot[
-annotated,
-PlotStyle->PointSize[0.015],
-PlotLegends->None,
-Frame->True,Axes->False,
-PlotRangePadding->Scaled[.05],
-LabelStyle->Directive[Black,16],
-FrameStyle->Black,
-FrameLabel->{
-Style["PC1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Blue],
-Style["PC2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Red]
-},
-AspectRatio->1,
-(* the expansion factor for ellipsoids in n dimensions at confidence level p is given by InverseCDF[ChiSquareDistribution[n], p] *)
-Epilog->{{Opacity[0],EdgeForm[Black],Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[2], confidenceLevel]Covariance[#]]}&/@scoregroups}
-](*end ListPlot for 2D PCA scores plot*),
-
-If[OptionValue[output]=="2DL",
-(* add 2D loadings plot *)
-ListPlot[
-MapThread[
-Labeled[100#1,Style[#2<>" "<>ToString@Round[100#1,0.1],Medium]]&,
-{Transpose[eigenvecs[[1;;2]]^2],vars}
-],
-PlotStyle->Directive[Black,PointSize[0.025]],
-(* The aspect ratio and plotrange definitions below make the plot square, while still adapting the plot range to the values being plotted *)
-AspectRatio->1,
-PlotRange->With[{max=105Max[Transpose[eigenvecs[[;;2]]^2]]},{{0,max},{0,max}}],
-PlotRangePadding->Scaled[0.05],
-AxesOrigin->{0,0},
-Frame->{True,True,False,False},FrameStyle->Directive[Black,FontSize->15],
-FrameLabel->{
-Style["Contrib. to PC1 (%)",FontSize->16,Blue],
-Style["Contrib. to PC2 (%)",FontSize->16,Red]
-}
-](*end ListPlot for loadings plot *),
-(* 2D loading plot not requested: add "nothing" to the GraphicsRow *)
-Nothing
-](*end If*)
-}
-,
-
-
-(* Return the transformed data as labeled SCORES, e.g. for external plotting *)
-OptionValue[output]=="scores",
-Transpose@Prepend[
-(* Add the ROW headers from the original dataset back in *)
-Transpose@Prepend[
-(* Add the factor number COLUMN headers *)
-scores,Array["PC"<>ToString[#]&,Dimensions[scores][[2]] ]
-],
-{""}~Join~labels
-],
-
-
-(* Return a formatted table of the contributions of each variable to the first three factors *)
-OptionValue[output]=="vartable",
-Style[
-TableForm[Transpose@Round[100eigenvecs[[1;;3]]^2,0.1],TableHeadings->{vars, {"PC1","PC2","PC3"}},TableAlignments->Right],
-FontFamily->"Arial",FontSize->14
-],
-
-
-(* Return the contributions of each variable to all factors, WITHOUT formatting *)
-OptionValue[output]=="varlist",
-Return[
-Transpose@Join[{vars}, Round[100eigenvecs^2,0.1]]
-],
-
-
-(* Return eigenvector matrix *)
-OptionValue[output]=="eigenvectors",
-eigenvecs,
-
-
-(* Return the list: {normalized eigenvalues, eigenvectors} *)
-OptionValue[output]=="eigensystem",
-{Normalize[eigenvals,Total],eigenvecs},
-
-(* Output requested is invalid: print error message and abort *)
-True,
-Message[pca::outputoptions,OptionValue[output]];Abort[]
-
-](*end Which*)
-](*end Module*)
 
 
 (* ::Section::Initialization::Closed:: *)
