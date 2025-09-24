@@ -469,7 +469,7 @@ lda[dataset_/;Not[MatrixQ[dataset]],OptionsPattern[]]:=Message[lda::notamatrix]
 
 
 (* ::Input::Initialization:: *)
-Options[pca]={output->"2DL",confidencelevel->0.95};
+Options[pca]={output->"2DL",confidencelevel->0.95,ellipsoids->True};
 
 pca::outputoptions="The value `1` is not a valid plotting option. Valid options are: \"2DL\" (default), \"2D\", \"scores\", \"eigenvectors\", \"eigensystem\", \"vartable\", \"varlist\".";
 pca::conflevel="`1` is an invalid value for the confidence level (0 < p < 1). The default 95% confidence level will be used instead.";
@@ -549,8 +549,15 @@ Style["PC1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",Font
 Style["PC2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->16,Red]
 },
 AspectRatio->1,
+If[
+(* check whether ellipsoids were requested through the "ellipsoids" option *)
+OptionValue[ellipsoids]===True,
+(* ellipsoids were in fact requested *)
 (* the expansion factor for ellipsoids in n dimensions at confidence level p is given by InverseCDF[ChiSquareDistribution[n], p] *)
-Epilog->{{Opacity[0],EdgeForm[Black],Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[2], confidenceLevel]Covariance[#]]}&/@scoregroups}
+Epilog->{{Opacity[0],EdgeForm[Black],Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[2], confidenceLevel]Covariance[#]]}&/@scoregroups},
+(* ellipsoids were NOT requested: instead of the Epilog, add "nothing" to the sequence of ListPlot options (actual Nothing will not work here) *)
+Unevaluated@Sequence[]
+]
 ](*end ListPlot for 2D PCA scores plot*),
 
 If[OptionValue[output]==="2DL",
