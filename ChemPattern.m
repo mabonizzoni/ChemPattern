@@ -689,17 +689,17 @@ outlierPCA[data_Association,options:OptionsPattern[]]:=
 Module[
 {replicates,results,defaultMaxIterations=15},
 
-(* for convenience, remove the variable names, because they are not needed for calculations *)
-replicates=KeyDrop[data,"varnames"];
-
-(* Check if dimensions is an integer; if not, get out; if it is, continue on and check its value *)
+(* Check if dimensions is an integer; if not, exit; if it is, continue to check its value *)
 If[Not@IntegerQ@OptionValue[dimensions],Message[outlierPCA::nonnumdims,OptionValue[dimensions]];Return[]];
 Which[
 (* too many dimensions requested: abort computation: *)
-OptionValue[dimensions]>Floor[Length@replicates[[1,1,2;;]]/2],(Message[outlierPCA::highdims];Return[]),
+OptionValue[dimensions]>Floor[Length@data[["varnames"]]/2],(Message[outlierPCA::highdims];Return[]),
 (* more than 3 dimensions requested: caution: *)
 OptionValue[dimensions]>3,Message[outlierPCA::dimcaution]
 ];
+
+(* for convenience, remove the variable names, because they are not needed for calculations *)
+replicates=KeyDrop[data,"varnames"];
 
 (* Carry out actual calcuations *)
 results=
