@@ -56,7 +56,7 @@ StyleBox[\"eigensystem\",\nFontSlant->\"Italic\"]\), \!\(\*
 StyleBox[\"numberofgroups\",\nFontSlant->\"Italic\"]\)]\nThe function generates a bar chart of the contributions of each group of variables to the overall discrimination. Before summing, the contributions to each factor are weighted by the corresponding eigenvalue of the factor. This is needed so that a group that contributes a lot to an unimportant factor is still reported as unimportant in the overall discrimination.";
 
 heatmap::usage="heatmap[\!\(\*
-StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] will produce a heat map plot of the entire dataset to quickly spot unevenness, data quality, obvious outlier points, and information distribution within each instrumental measurement. In the plot the data is presented by rows (samples) and columns (measurements). The data for each measurement type is standardized before plotting so the magnitudes of variation are comparable.\n\nFunction-specific options:\n\"sortedSet\" -> True  If this is set to False, then both the columns and the rows of the dataset are sorted alphabetically before plotting. The default value (True) does no sorting.\n\nThe function uses ArrayPlot to generate the graphics so it also takes general plotting function / Graphics options such as ColorFunction and ColorFunctionScaling, AspectRatio, Mesh, MeshStyle.";
+StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] will produce a heat map plot of the entire dataset to quickly spot unevenness, data quality, obvious outlier points, and information distribution within each instrumental measurement. In the plot the data is presented by rows (samples) and columns (measurements). The data for each measurement type is standardized before plotting so the magnitudes of variation are comparable.\n\nFunction-specific options:\n\"sortedSet\" -> True  If this is set to False, then both the columns and the rows of the dataset are sorted alphabetically before plotting. The default value (True) does no sorting.\n\nThe function uses MatrixPlot to generate the graphics so it also takes general plotting function / Graphics options such as ColorFunction and ColorFunctionScaling, AspectRatio, Mesh, MeshStyle.";
 
 lda::usage="lda[\!\(\*
 StyleBox[\"dataset\",\nFontSlant->\"Italic\"]\)] carries out Linear Discriminant Analysis on dataset and returns the transformed data as factor scores (default), or other numerical / graphical results. Each row of dataset should contain a sample; the first column contains the class identifier for that sample.\nOptions:\napplyfunc (Identity, Standardize (default), Rescale, ...)\noutput (\"scores\", \"vartable\", \"varlist\", \"eigenvectors\", \"eigensystem\", \"2D\" (= 2D score plot), \"2DL\" (= 2D score and loading plots, default), \"3D\", \"3DL\")\nswapaxes (default = {False,False})\nellipsoidcolor (Automatic, True)\nconfidencelevel (default is 0.95 = 95% confidence)";
@@ -1278,6 +1278,8 @@ Options[heatmap]={
 AspectRatio->1/2,ImageSize->Full,
 ColorFunction->Automatic,ColorFunctionScaling->True,
 FrameTicksStyle->Directive[Black,9],
+(* The following option ensures that no downsampling is done when plotting: all points in the dataset are plotted *)
+MaxPlotPoints->Infinity,
 (* the default for plotting functions would be Automatic, rather than the following, but this is more convenient to handle options in the two directions separately *)
 Mesh->{Automatic,None},MeshStyle->{Directive[GrayLevel[0,1],Thick],GrayLevel[0.5,0.5]},
 (* option to decide whether the dataset should be sorted before plotting *)
@@ -1338,6 +1340,7 @@ vTicks=Append[#,{0,0.003}]&/@Transpose@{MovingAverage[hMeshLines,2]+0.5,DeleteDu
 MatrixPlot[
 Standardize@measurements,
 ColorFunction->OptionValue[ColorFunction],ColorFunctionScaling->OptionValue[ColorFunctionScaling],
+MaxPlotPoints->OptionValue[MaxPlotPoints],
 PlotLegends->Placed[Automatic,Top],
 ImageSize->OptionValue[ImageSize],
 PlotRangePadding->None,
