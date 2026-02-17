@@ -480,9 +480,10 @@ Module[
 dataset=data,
 vars,labels,
 confidenceLevel,
-scores,scores2D,annotated,scoregroups,
+scores,scores2D,scores3D,annotated2D,annotated3D,scoregroups2D,scoregroups3D,
 leftSingularValues,s,eigenvecsT,
-eigenvals,eigenvecs
+eigenvals,eigenvecs,
+ellipsoids3D
 },
 
 (* if column headers are not present, create generic variable names and add them to the top of the dataset *)
@@ -512,23 +513,24 @@ confidenceLevel=With[{cf=OptionValue["confidencelevel"]},If[NumericQ[cf]&&0<cf<1
 {leftSingularValues,s,eigenvecsT}=SingularValueDecomposition[Standardize@dataset[[2;;,2;;]]];
 eigenvals=Diagonal[s]^2;
 scores=leftSingularValues . s;
-scores2D=scores[[All,;;2]];
 eigenvecs=Transpose@eigenvecsT;
 
-annotated=Merge[Identity]@MapThread[
+scores2D=scores[[All,;;2]];
+annotated2D=Merge[Identity]@MapThread[
 <|#1->Tooltip[#2,#1]|>&,
 {labels,scores2D}
 ];
-scoregroups=GatherBy[Transpose@Insert[Transpose@scores2D,labels,1],First][[All,All,2;;]];
+scoregroups2D=GatherBy[Transpose@Insert[Transpose@scores2D,labels,1],First][[All,All,2;;]];
 
 (*********)
 (* OUTPUT *)
 (*********)
 
 Which[
-(* 2D plot of scores and loadings *)
 (* ALL comparisons should be done with SameQ (===), not Equal (==)*)
 (* this guarantees evaluation to True / False even when comparing to symbols without values *)
+
+(* 2D plot of scores and loadings *)
 OptionValue[output]==="2DL"||OptionValue[output]==="2D",
 If[
 OptionValue[output]==="2DL",
@@ -537,7 +539,7 @@ Show[#,ImageSize->Scaled[1/3]]&(*only the scores plot was requested, so just sho
 ]@{
 (* PCA scores plot *)
 ListPlot[
-annotated,
+annotated2D,
 PlotStyle->PointSize[0.015],
 PlotLegends->None,
 Frame->True,Axes->False,
@@ -553,8 +555,8 @@ If[
 (* check whether ellipsoids were requested through the "ellipsoids" option *)
 OptionValue[ellipsoids]===True,
 (* ellipsoids were in fact requested *)
-(* the expansion factor for ellipsoids in n dimensions at confidence level p is given by InverseCDF[ChiSquareDistribution[n], p] *)
-Epilog->{{Opacity[0],EdgeForm[Black],Ellipsoid[Mean[#],InverseCDF[ChiSquareDistribution[2], confidenceLevel]Covariance[#]]}&/@scoregroups},
+(* the expansion factor for ellipsoids in n dimensions at confidence level p is given by Quantile[ChiSquareDistribution[n], p] *)
+Epilog->{{Opacity[0],EdgeForm[Black],Ellipsoid[Mean[#],Quantile[ChiSquareDistribution[2], confidenceLevel]Covariance[#]]}&/@scoregroups2D},
 (* ellipsoids were NOT requested: instead of the Epilog, add "nothing" to the sequence of ListPlot options (actual Nothing will not work here) *)
 Unevaluated@Sequence[]
 ]
@@ -587,9 +589,44 @@ Style["Contrib. to PC2 (%)",FontSize->16,Red]
 (* 2D loading plot not requested: add "nothing" to the GraphicsRow *)
 Nothing
 ](*end If*)
-}
-,
+},(*end of 2D or 2DL option evaluation*)
 
+
+(* 3D plot of scores (loadings not implemented yet) *)
+OptionValue[output]==="3D",(* 3D plot of results was requested *)
+scores3D=
+GroupBy[#,First->Rest]&@
+Transpose@Insert[Transpose@scores[[All,;;3]],labels,1];
+(* Ellipsoids: width of ellipsoids is given by Quantile[ChiSquareDistribution[number of dimensions, confidence level] x Covariance[data] *)
+ellipsoids3D=MapThread[
+Tooltip[{Opacity[0.3,#3],Ellipsoid[Mean[#2],Quantile[ChiSquareDistribution[3],confidenceLevel]Covariance[#2]]},#1]&,
+{Keys@scores3D,Values@scores3D,ColorData["DefaultPlotColors"]/@Range[Length[scores3D]]}
+];
+
+(* 3D score plot *)
+Show[
+{
+ListPointPlot3D[
+scores3D,
+Axes->True,AxesStyle->Black, BoxStyle->Black,
+AxesLabel->{
+Style["Factor 1 ("<>ToString[Round[100eigenvals[[1]]/Total@eigenvals,0.1]]<>"%)",FontSize->Scaled[0.025],FontFamily->"Arial",Blue],Style["Factor 2 ("<>ToString[Round[100eigenvals[[2]]/Total@eigenvals,0.1]]<>"%)",FontSize->Scaled[0.025],FontFamily->"Arial",Red],
+Style["Factor 3 ("<>ToString[Round[100eigenvals[[3]]/Total@eigenvals,0.1]]<>"%)",FontSize->Scaled[0.025],FontFamily->"Arial",Darker@Green]
+},
+PlotStyle->PointSize[Scaled[0.01]],
+PlotRange->All,PlotRangePadding->Scaled[0.05],
+BoxRatios->{1, 1, 1},
+(*Lighting\[Rule]"Neutral",*)RotationAction->"Clip"
+],
+Graphics3D@ellipsoids3D
+},
+ImageSize->Scaled[1/2]
+],(* end of 3D option evaluation *)
+
+
+(* 3D loadings plot is not yet implemented *)
+OptionValue[output]==="3DL",
+Return["3D loadings plot not yet implemented: ask for output -> \"3D\" instead."],
 
 (* Return the transformed data as labeled SCORES, e.g. for external plotting *)
 OptionValue[output]==="scores",
