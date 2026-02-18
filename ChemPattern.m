@@ -1198,34 +1198,47 @@ TableAlignments->{Right,Center}
 
 ClearAll[iOverviewSparklines]
 iOverviewSparklines[data_]:=Module[
-{workingdata,sparklines},
+{workingdata,sparklines,gridpositions},
 
 (*Check for the presence of sample labels, and remove them if present*)
 (*Also stable-sort the dataset so replicates for the same sample are guaranteed to be contiguous*)
 (*note! this works on the assumption that data[[1,1]] is an EMPTY STRING: otherwise the measurement names get alphabetized out of order*)
 workingdata=If[StringQ@data[[2,1]],
-(*the first column contains sample labels; use them to sort the dataset (except the first row, which are measurement labels and should not be touched)*)
-(*1. remove first row and sort; 2. reattach first row; 2. remove sample labels*)
+(*the first column contains sample labels:*)
+(*calculate the positions of gridline separators from the sample labels*)
+(*Most drops the useless gridline that would otherwise appear after the last point *)
+gridpositions=Most@Values[(Last/@PositionIndex[data[[2;;,1]]])+0.5];
+(*use the labels to sort the dataset (except the first row, which are measurement labels and should not be touched)*)
+(*1. remove first row and sort; 2. reattach first row; 3. remove sample labels*)
 ({data[[1]]}~Join~SortBy[data[[2;;]],{First}])[[All,2;;]],
-(*there are no sample labels: nothing needs to be done*)
+(*there are no sample labels: nothing needs to be done, also remove gridlines*)
+gridpositions=None;
 data
 ];
 
 (* Build sparklines and organize them in a multicolumn display *)
-sparklines=Multicolumn[
+(* 2026-02-17: switched from Multicolumn to Grid/Partition because Partition takes an UpTo directive, whereas Multicolumn does not *)
+sparklines=Grid@
+Partition[
 Framed[
 ListPlot[
 {##2},
-PlotLabel->Style[#1,14,Red],
-PlotRangePadding->{Scaled[0.03],{Scaled[0.05],Scaled[0.1]}},
+PlotRangePadding->{Scaled[0.03],{Scaled[0.02],Scaled[0.26]}},
+Epilog->Inset[Style[#1,FontSize->Scaled[0.09],Red],{Center,Top},{Center,Top},Background->White],
+GridLines->{gridpositions,None},GridLinesStyle->Directive[Black],
+(*Make the plots square and as large as possible while still fitting in the grid cells*)
+ImageSize->{UpTo@Scaled[1],Automatic},AspectRatio->1,
 Axes->None,
 (*Do not display a frame around the plot area.
 Although this is already the default for ListPlot,
-let us just make sure, in case the default has been altered*)
-Frame->None
+  let us just make sure, in case the default has been altered*)
+Frame->None,
+(*Turn off the automatically added interactive labeling features introduced around version 14*)
+(*but retain any such features explicitly requested by the user*)
+PlotInteractivity-><|"User" -> True, "System" -> False|>
 ]
 ]&@@@Transpose[workingdata],
-Appearance->"Horizontal"
+UpTo[8]
 ]
 ]
 
