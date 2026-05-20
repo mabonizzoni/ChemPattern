@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+title: "ChemPattern"
+message: "If you use this software in your research, please cite the repository."
+type: software
+authors:
+  - family-names: Bonizzoni
+    given-names: Marco
+date-released: 2026-05-20
+url: https://github.com/mabonizzoni/ChemPattern
+
+doi: 10.5281/zenodo.20315767
